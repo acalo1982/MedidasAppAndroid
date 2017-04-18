@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory android:title="Calibración">
+        <Preference android:title="Background" android:key="background"/>
+        <Preference android:title="Reference" android:key="reference"/>
+        <Preference android:title="3rd Standard (optional)" android:key="plex2mm"/>
+
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="Parametros Medidas">
+
+        <EditTextPreference
+            android:defaultValue="2"
+            android:key="freq1"
+            android:selectAllOnFocus="true"
+            android:singleLine="true"
+            android:title="Freq. ini (GHz)" />
+        <EditTextPreference
+            android:defaultValue="18"
+            android:key="freq1"
+            android:selectAllOnFocus="true"
+            android:singleLine="true"
+            android:title="Freq. end (GHz)" />
+        <EditTextPreference
+            android:defaultValue="201"
+            android:key="npoint"
+            android:selectAllOnFocus="true"
+            android:singleLine="true"
+            android:title="Num. points" />
+        <EditTextPreference
+            android:defaultValue="0.18"
+            android:key="filtro"
+            android:selectAllOnFocus="true"
+            android:singleLine="true"
+            android:title="Filter length (m)" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="Conexión">
+
+        <EditTextPreference
+            android:defaultValue="10.1.18.121"
+            android:key="ip"
+            android:selectAllOnFocus="true"
+            android:singleLine="true"
+            android:title="IP" />
+        <EditTextPreference
+            android:defaultValue="5023"
+            android:key="puerto"
+            android:selectAllOnFocus="true"
+            android:singleLine="true"
+            android:title="Port" />
+    </PreferenceCategory>
+</PreferenceScreen>
