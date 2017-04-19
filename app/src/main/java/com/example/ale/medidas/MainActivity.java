@@ -33,8 +33,8 @@ public class MainActivity extends AppCompatActivity {
                 return true;
             case R.id.action_buscar: //Pulsado sobre el icono de configuracion
                 Log.i("ActionBar", "Settings!");
-                //Intent intent = new Intent(this, Configuracion.class); // Abrimos la pantalla de configuracion: Implementada como una Activity
-                Intent intent = new Intent(this, OpcionesFragment.class); // Implementada como una PreferenceScreen
+                //Intent intent = new Intent(this, Configuracion.class); // Abrimos la pantalla de configuracion: Implementada como una secundaria Activity
+                Intent intent = new Intent(this, PantallaConf.class); // Abrimos Activity secundaria que hace uso del fragment XML como su propia UI
                 startActivity(intent);
                 return true;
             case R.id.action_settings:

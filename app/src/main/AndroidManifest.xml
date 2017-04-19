@@ -16,7 +16,8 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".Configuracion"></activity>
+        <activity android:name=".Configuracion" />
+        <activity android:name=".PantallaConf"></activity>
     </application>
 
 </manifest>
