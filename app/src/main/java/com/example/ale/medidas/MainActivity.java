@@ -33,11 +33,11 @@ public class MainActivity extends AppCompatActivity {
             case R.id.action_buscar: //Pulsado sobre el icono de configuracion
                 Log.i("ActionBar", "Settings!");
                 //Intent intent = new Intent(this, Configuracion.class); // Abrimos la pantalla de configuracion: Implementada como una Activity
-                Intent intent = new Intent(this, OpcionesActivity.class); // Implementada como una PreferenceScreen
+                Intent intent = new Intent(this, OpcionesFragment.class); // Implementada como una PreferenceScreen
                 startActivity(intent);
                 return true;
             case R.id.action_settings:
-                Log.i("ActionBar", "Settings!");;
+                Log.i("ActionBar", "Settings!");
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
