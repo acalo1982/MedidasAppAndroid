@@ -23,9 +23,9 @@ public class PantallaConf extends AppCompatActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
-            case android.R.id.home:
+            case android.R.id.home: //clic en el boton de ir para atrás!
                 // API 5+ solution
-                onBackPressed();
+                onBackPressed(); //volvemos a la Actividad principal
                 return true;
 
             default:

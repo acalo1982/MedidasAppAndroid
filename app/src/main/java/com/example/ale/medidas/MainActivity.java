@@ -7,15 +7,16 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.content.Intent;
 import com.jjoe64.graphview.GraphView;
-import com.jjoe64.graphview.series.DataPoint;
-import
-
+import com.jjoe64.graphview.series.*;
+import android.content.pm.ActivityInfo;
 
 public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        super.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+
         setContentView(R.layout.activity_main);
 //        getSupportActionBar().setDisplayShowTitleEnabled(true);
 //        getSupportActionBar().setTitle("Ale");
@@ -24,13 +25,35 @@ public class MainActivity extends AppCompatActivity {
 //        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 //        //getSupportActionBar().setLogo(R.drawable.dani_icon);
         //getSupportActionBar().setDisplayUseLogoEnabled(true);
+
         GraphView graph = (GraphView) findViewById(R.id.graph);
-        LineGraphSeries<DataPoint> series = new LineGraphSeries<>(new DataPoint[] {
-                new DataPoint(0, 1),
-                new DataPoint(1, 5),
-                new DataPoint(2, 3)
-        });
+        DataPoint[] points = new DataPoint[100];
+        for (int i = 0; i < points.length; i++) {
+            points[i] = new DataPoint(i, Math.sin(i*0.5) * 20*(Math.random()*10+1));
+        }
+        LineGraphSeries<DataPoint> series = new LineGraphSeries<>(points);
+        // set manual X bounds
+        graph.getViewport().setYAxisBoundsManual(true);
+        graph.getViewport().setMinY(-150);
+        graph.getViewport().setMaxY(150);
+
+        graph.getViewport().setXAxisBoundsManual(true);
+        graph.getViewport().setMinX(4);
+        graph.getViewport().setMaxX(80);
+
+        // enable scaling and scrolling
+        graph.getViewport().setScalable(true);
+        graph.getViewport().setScalableY(true);
+
         graph.addSeries(series);
+
+        //        LineGraphSeries<DataPoint> series = new LineGraphSeries<>(new DataPoint[] {
+//                new DataPoint(0, 1),
+//                new DataPoint(1, 5),
+//                new DataPoint(2, 3)
+//        });
+//        graph.addSeries(series);
+
     }
 
 
