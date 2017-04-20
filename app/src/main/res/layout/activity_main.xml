@@ -7,5 +7,8 @@
     android:background="@drawable/mmag">
     tools:context="com.example.ale.medidas.MainActivity">
 
-
+    <com.jjoe64.graphview.GraphView
+        android:layout_width="match_parent"
+        android:layout_height="200dip"
+        android:id="@+id/graph" />
 </android.support.constraint.ConstraintLayout>

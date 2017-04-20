@@ -7,14 +7,29 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.content.Intent;
 
-
 public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+//        getSupportActionBar().setDisplayShowTitleEnabled(true);
+//        getSupportActionBar().setTitle("Ale");
+//        getSupportActionBar().setIcon(R.drawable.dani_icon);
+//        getSupportActionBar().setDisplayShowHomeEnabled(true);
+//        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+//        //getSupportActionBar().setLogo(R.drawable.dani_icon);
+        //getSupportActionBar().setDisplayUseLogoEnabled(true);
+        GraphView graph = (GraphView) findViewById(R.id.graph);
+        LineGraphSeries<DataPoint> series = new LineGraphSeries<>(new DataPoint[] {
+                new DataPoint(0, 1),
+                new DataPoint(1, 5),
+                new DataPoint(2, 3)
+        });
+        graph.addSeries(series);
     }
+
+
     //Asociamos el menu a la ActionBar por defecto de la App
     //ale
     @Override
