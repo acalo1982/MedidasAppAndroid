@@ -19,8 +19,8 @@
         <!--android:layout_marginStart="8dp">-->
 
     <com.jjoe64.graphview.GraphView
-        android:layout_width="368dp"
-        android:layout_height="495dp"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
         android:id="@+id/graph"
         app:layout_constraintTop_toTopOf="parent"
         android:layout_marginTop="8dp"
