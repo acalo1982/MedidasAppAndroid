@@ -15,7 +15,7 @@ import android.widget.Toast;
 
 public class MainActivity extends AppCompatActivity {
 
-    private TCPClient mTcpClient;
+    private TCPClient mTcpClient; //objeto que recivirá y enviará msg al servidor!
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,23 +52,25 @@ public class MainActivity extends AppCompatActivity {
         graph.getViewport().setScalableY(true);
         graph.addSeries(series); //Dibuamos la curva sobre los ejes
 
+        //CREAMOS UN OBEJETO QUE ATENDERÁ LOS MSG ENVIADOS POR EL VNA: LOS DATOS DE LA LECTURA
+        new connectTask().execute("");
+
         //EVENTO DE PULSAR SOBRE EL EJE (LO TRATAREMOS COMO UN OBJETO VIEW)
         graph.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Toast.makeText(getApplicationContext(), "Click sobre los ejes!", Toast.LENGTH_SHORT).show();
-
+                //Toast.makeText(getApplicationContext(), "Click sobre los ejes!", Toast.LENGTH_SHORT).show();
                 //sends the message to the server
-//                if (mTcpClient != null) {
-//                    String message="comandoTCP\n";//comando indicando al VNA que realice una captura!
-//                    mTcpClient.sendMessage(message);
-//                }
+
+                if (mTcpClient != null) {
+                    String message="H";//comando indicando al VNA que realice una captura!
+                    Log.e("MainActivity", "alej: antes de llamar a mTcpClient.sendMessageWaitResponse()");
+                    mTcpClient.sendMessage(message);
+                    Toast.makeText(getApplicationContext(), "Enviar msg="+message, Toast.LENGTH_SHORT).show();
+                }
 
             }
         });
-
-        //CREAMOS UN OBEJETO QUE ATENDERÁ LOS MSG ENVIADOS POR EL VNA: LOS DATOS DE LA LECTURA
-        //new connectTask().execute("");
     }
 
 
@@ -105,26 +107,27 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         protected TCPClient doInBackground(String... message) {
-
             //we create a TCPClient object and
             mTcpClient = new TCPClient(new TCPClient.OnMessageReceived() {
                 @Override
                 //here the messageReceived method is implemented
                 public void messageReceived(String message) {
                     //this method calls the onProgressUpdate
+                    Log.e("connectTask", "alej: antes de publishProgress() msg="+message);
                     publishProgress(message);
                 }
             });
-            mTcpClient.run(); //abrimos el socket y empezamos a escuchar datos del servidor
-
+            mTcpClient.run(); //abrimos el socket de comunicacion con el servidor
+            //Log.e("connectTask", "alej: despues de mTcpClient.run()");
             return null;
         }
 
         @Override
         protected void onProgressUpdate(String... values) {
             super.onProgressUpdate(values);
-
-
+            String msg=values[0]; //recuperamos el texto como parámetro de entrada
+            Toast.makeText(getApplicationContext(), "Rxdo msg="+msg, Toast.LENGTH_SHORT).show();
+            //mTcpClient.stopClient();
         }
     }
 
