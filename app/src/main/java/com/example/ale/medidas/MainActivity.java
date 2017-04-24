@@ -53,7 +53,7 @@ public class MainActivity extends AppCompatActivity {
         graph.addSeries(series); //Dibuamos la curva sobre los ejes
 
         //CREAMOS UN OBEJETO QUE ATENDERÁ LOS MSG ENVIADOS POR EL VNA: LOS DATOS DE LA LECTURA
-        new connectTask().execute("");
+        //new connectTask().execute("");
 
         //EVENTO DE PULSAR SOBRE EL EJE (LO TRATAREMOS COMO UN OBJETO VIEW)
         graph.setOnClickListener(new View.OnClickListener() {
@@ -61,13 +61,13 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View view) {
                 //Toast.makeText(getApplicationContext(), "Click sobre los ejes!", Toast.LENGTH_SHORT).show();
                 //sends the message to the server
-
-                if (mTcpClient != null) {
-                    String message="H";//comando indicando al VNA que realice una captura!
-                    Log.e("MainActivity", "alej: antes de llamar a mTcpClient.sendMessageWaitResponse()");
-                    mTcpClient.sendMessage(message);
-                    Toast.makeText(getApplicationContext(), "Enviar msg="+message, Toast.LENGTH_SHORT).show();
-                }
+                new connectTask().execute("Datos");
+//                if (mTcpClient != null) {
+//                    String message="Ale";//comando indicando al VNA que realice una captura!
+//                    Log.e("MainActivity", "alej: antes de llamar a mTcpClient.sendMessageWaitResponse()");
+//                    mTcpClient.sendMessage(message);
+//                    Toast.makeText(getApplicationContext(), "Enviar msg="+message, Toast.LENGTH_SHORT).show();
+//                }
 
             }
         });
@@ -113,12 +113,10 @@ public class MainActivity extends AppCompatActivity {
                 //here the messageReceived method is implemented
                 public void messageReceived(String message) {
                     //this method calls the onProgressUpdate
-                    Log.e("connectTask", "alej: antes de publishProgress() msg="+message);
                     publishProgress(message);
                 }
             });
-            mTcpClient.run(); //abrimos el socket de comunicacion con el servidor
-            //Log.e("connectTask", "alej: despues de mTcpClient.run()");
+            mTcpClient.run(message[0]); //abrimos el socket de comunicacion con el servidor
             return null;
         }
 

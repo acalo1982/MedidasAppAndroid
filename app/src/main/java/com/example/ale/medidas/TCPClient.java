@@ -47,7 +47,7 @@ public class TCPClient {
         mRun = false;
     }
 
-    public void run() {
+    public void run(String txt) {
         mRun = true;
         try {
             //here you must put your computer's IP address.
@@ -61,11 +61,10 @@ public class TCPClient {
                 //receive the message which the server sends back
                 in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                 Log.e("TCPClient", "alej: Socket con el servidor Abierto!");
-
-                //sendMessage("H");
+                sendMessage(txt);
 
 //                //in this while the client listens for the messages sent by the server
-                while (mRun) {
+//                while (mRun) {
                     serverMessage = in.readLine(); //comprobamos si ha llegado algo al servidor
 
                     if (serverMessage != null && mMessageListener != null) {
@@ -73,23 +72,20 @@ public class TCPClient {
                         mMessageListener.messageReceived(serverMessage);
                     }
                     serverMessage = null;
-                }
-
+//                }
                 Log.e("RESPONSE FROM SERVER", "S: Received Message: '" + serverMessage + "'");
                 socket.close();
 
             } catch (Exception e) {
-
                 Log.e("TCP", "S: Error", e);
-
-            } finally {
+            }
+            //finally {
                 //the socket must be closed. It is not possible to reconnect to this socket
                 // after it is closed, which means a new socket instance has to be created.
-                socket.close();
-            }
+                //socket.close();
+            //}
 
         } catch (Exception e) {
-
             Log.e("TCP", "C: Error", e);
 
         }
