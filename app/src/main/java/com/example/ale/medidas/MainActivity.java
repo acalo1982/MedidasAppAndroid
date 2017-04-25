@@ -16,6 +16,8 @@ import android.widget.Toast;
 public class MainActivity extends AppCompatActivity {
 
     private TCPClient mTcpClient; //objeto que recivirá y enviará msg al servidor!
+    private TCPClientv2 mTcpClientv2;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,27 +54,31 @@ public class MainActivity extends AppCompatActivity {
         graph.getViewport().setScalableY(true);
         graph.addSeries(series); //Dibuamos la curva sobre los ejes
 
-        //CREAMOS UN OBEJETO QUE ATENDERÁ LOS MSG ENVIADOS POR EL VNA: LOS DATOS DE LA LECTURA
-        //new connectTask().execute("");
+        //CREAMOS UN SOCKET DE COMUNICACIÓN
+        mTcpClientv2 = new TCPClientv2(); //creamos objeto y asiganamos una referencia a él
+        //new connectTaskv2().execute(); //abrimos socket (v2)
+
 
         //EVENTO DE PULSAR SOBRE EL EJE (LO TRATAREMOS COMO UN OBJETO VIEW)
         graph.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                //Toast.makeText(getApplicationContext(), "Click sobre los ejes!", Toast.LENGTH_SHORT).show();
                 //sends the message to the server
-                new connectTask().execute("Datos");
-//                if (mTcpClient != null) {
-//                    String message="Ale";//comando indicando al VNA que realice una captura!
-//                    Log.e("MainActivity", "alej: antes de llamar a mTcpClient.sendMessageWaitResponse()");
-//                    mTcpClient.sendMessage(message);
-//                    Toast.makeText(getApplicationContext(), "Enviar msg="+message, Toast.LENGTH_SHORT).show();
-//                }
+
+                //Cliente v1: Se abre y cierra un socket para comando
+                new connectTask().execute("Datos");//en el nuevo hilo se envía 1 comando y se espera su respuesta
+
+                //Cliente v2: Se abre un socket y se deja abierto para enviar todos los comandos
+                //mTcpClientv2.sendMessage("Ale"); //enviamos datos al servidor
+                //new connectTaskv3().execute();//leemos datos del servidor (v2)
+                //Log.e("MainActivity", "alej: Antes de llamar a mTcpClient.sendMessage()");
+
+
+
 
             }
         });
     }
-
 
     //Asociamos el menu a la ActionBar por defecto de la App
     @Override
@@ -128,6 +134,34 @@ public class MainActivity extends AppCompatActivity {
             //mTcpClient.stopClient();
         }
     }
+
+    public class connectTaskv2 extends AsyncTask<Void,String,Boolean> {
+
+        @Override
+        protected Boolean doInBackground(Void... values) {
+            mTcpClientv2.abrirSocket();
+            return null;
+        }
+    }
+
+    public class connectTaskv3 extends AsyncTask<Void,String,Boolean> {
+
+        @Override
+        protected Boolean doInBackground(Void... values) {
+            String msg=mTcpClientv2.leerMessage();
+            publishProgress(msg);
+            return null;
+        }
+
+        @Override
+        protected void onProgressUpdate(String... values) {
+            super.onProgressUpdate(values);
+            String msg=values[0]; //recuperamos el texto como parámetro de entrada
+            Toast.makeText(getApplicationContext(), "Rxdo msg="+msg, Toast.LENGTH_SHORT).show();
+            //mTcpClient.stopClient();
+        }
+    }
+
 
 }
 
