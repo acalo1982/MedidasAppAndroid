@@ -18,7 +18,7 @@
             android:title="Freq. ini (GHz)" />
         <EditTextPreference
             android:defaultValue="18"
-            android:key="freq1"
+            android:key="freqEnd"
             android:selectAllOnFocus="true"
             android:singleLine="true"
             android:title="Freq. end (GHz)" />
