@@ -77,7 +77,8 @@ public class MainActivity extends AppCompatActivity {
 
     public void lecturaS11(View v){
         //LECTURA
-        new connectTask().execute(":DISP:WIND:TRAC1:Y:AUTO");
+        //new connectTask().execute(":DISP:WIND:TRAC1:Y:AUTO");
+        new connectTask().execute(":CALC:DATA:SDAT?");
 
         //Cliente v0: Codigo Original probado con el servidor del VNA
 //                Log.e("MainActivity", "alej: Antes de llamar a mTcpClient.sendMessage()");
