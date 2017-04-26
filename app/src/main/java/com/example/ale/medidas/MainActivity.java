@@ -21,7 +21,7 @@ public class MainActivity extends AppCompatActivity {
     private TCPClient mTcpClient; //objeto que recivirá y enviará msg al servidor!
     private TCPClientv2 mTcpClientv2;
     private int conectado=0;//monitoriza el estado de conexión al VNA
-    private String S11=null;
+    private String S11;
 
 
     @Override
@@ -170,8 +170,8 @@ public class MainActivity extends AppCompatActivity {
         @Override
         protected void onProgressUpdate(String... values) {
             super.onProgressUpdate(values);
-            String msg = values[0]; //recuperamos el texto como parámetro de entrada
-            Toast.makeText(getApplicationContext(), "Num de puntos: " + msg.length() + " Rxdo msg=" + msg, Toast.LENGTH_SHORT).show();
+            S11 = values[0];
+            Toast.makeText(getApplicationContext(), "Num de puntos: " + S11.length() + " Leído S11=" + S11, Toast.LENGTH_SHORT).show();
             //mTcpClient.stopClient();
         }
     }
@@ -197,8 +197,7 @@ public class MainActivity extends AppCompatActivity {
         protected void onProgressUpdate(String... values) {
             super.onProgressUpdate(values);
             String msg = values[0]; //recuperamos el texto como parámetro de entrada
-            S11 = values[0];
-            Toast.makeText(getApplicationContext(), "Leído S11=" + S11, Toast.LENGTH_SHORT).show();
+            Toast.makeText(getApplicationContext(), "Num de puntos: " + msg.length() + " Rxdo msg=" + msg, Toast.LENGTH_SHORT).show();
         }
     }
 
