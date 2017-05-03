@@ -65,15 +65,18 @@ public class MainActivity extends AppCompatActivity {
         graph.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                lecturaS11(view);
+                //lecturaS11(view);
+                new connectTask().execute(":CALC:DATA:SDAT?");
             }
         });
     }
 
-    public void lecturaS11(View v){
-        //LECTURA de los datos del VNA
-        new connectTask().execute(":CALC:DATA:SDAT?");
 
+    public void lecturaS11(String msg){
+        //LECTURA de los datos del VNA
+        //new connectTask().execute(":CALC:DATA:SDAT?");
+        S11=msg;
+        Log.e("MainActivity", "alej: Mensaje recibido por el hilo de escucha: '" + S11 + "'");
         //Convertimos el String en DataPoint
         String[] S11_list=S11.split(",");
         int N=S11_list.length/2;//string array con la parte real y compleja del S11 para cada freq
@@ -128,12 +131,12 @@ public class MainActivity extends AppCompatActivity {
                 Log.i("ActionBar", "Settings!");
                 if (conectado == 0) {
                     conectado = 1;
-                    //item.setIcon(android.R.drawable.presence_online);
-                    item.setIcon(android.R.drawable.ic_notification_overlay);
                     Log.e("ActionBar", "alej: Conectado: boton en rojo");
                     //Configuración del VNA
                     String[] cmd_conf={":INST \"NA\"",":SOUR:POW:ALC HIGH",":INIT:CONT 1",":FREQ:STAR 2e9",":FREQ:STOP 18e9",":SWE:POIN 201",":BWID 1000",":AVER:COUN 1"};
                     new connectTask().execute(cmd_conf);
+                    //item.setIcon(android.R.drawable.presence_online);
+                    item.setIcon(android.R.drawable.ic_notification_overlay);
                 }else{
                     conectado = 0;
                     item.setIcon(android.R.drawable.presence_invisible);
@@ -170,36 +173,37 @@ public class MainActivity extends AppCompatActivity {
         @Override
         protected void onProgressUpdate(String... values) {
             super.onProgressUpdate(values);
-            S11 = values[0];
-            Toast.makeText(getApplicationContext(), "Num de puntos: " + S11.length() + " Leído S11=" + S11, Toast.LENGTH_SHORT).show();
+            String msg=values[0];
+            Toast.makeText(getApplicationContext(), "Num de puntos: " + msg.length() + " Leído S11=" + S11, Toast.LENGTH_SHORT).show();
+            lecturaS11(msg);//Tras recibir un msg, llamamos a la función que lo procesa
             //mTcpClient.stopClient();
         }
     }
 
 
-    //Cliente v2: Comparte un socket para enviar varios comandos y escuchar las respuestas enviadas por el servidor
-    public class connectTaskv2 extends AsyncTask<Void, String, Boolean> {
-        @Override
-        protected Boolean doInBackground(Void... values) {
-            mTcpClientv2.abrirSocket();
-            return null;
-        }
-    }
-    public class connectTaskv3 extends AsyncTask<Void, String, Boolean> {
-        @Override
-        protected Boolean doInBackground(Void... values) {
-            String msg = mTcpClientv2.leerMessage();
-            publishProgress(msg);
-            return null;
-        }
-
-        @Override
-        protected void onProgressUpdate(String... values) {
-            super.onProgressUpdate(values);
-            String msg = values[0]; //recuperamos el texto como parámetro de entrada
-            Toast.makeText(getApplicationContext(), "Num de puntos: " + msg.length() + " Rxdo msg=" + msg, Toast.LENGTH_SHORT).show();
-        }
-    }
+//    //Cliente v2: Comparte un socket para enviar varios comandos y escuchar las respuestas enviadas por el servidor
+//    public class connectTaskv2 extends AsyncTask<Void, String, Boolean> {
+//        @Override
+//        protected Boolean doInBackground(Void... values) {
+//            mTcpClientv2.abrirSocket();
+//            return null;
+//        }
+//    }
+//    public class connectTaskv3 extends AsyncTask<Void, String, Boolean> {
+//        @Override
+//        protected Boolean doInBackground(Void... values) {
+//            String msg = mTcpClientv2.leerMessage();
+//            publishProgress(msg);
+//            return null;
+//        }
+//
+//        @Override
+//        protected void onProgressUpdate(String... values) {
+//            super.onProgressUpdate(values);
+//            String msg = values[0]; //recuperamos el texto como parámetro de entrada
+//            Toast.makeText(getApplicationContext(), "Num de puntos: " + msg.length() + " Rxdo msg=" + msg, Toast.LENGTH_SHORT).show();
+//        }
+//    }
 
 
 }

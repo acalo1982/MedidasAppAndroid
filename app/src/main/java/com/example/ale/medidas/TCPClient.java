@@ -60,7 +60,7 @@ public class TCPClient {
                 out = new PrintWriter(new BufferedWriter(new OutputStreamWriter(socket.getOutputStream())), true);
                 //receive the message which the server sends back
                 in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                Log.e("TCPClient", "alej: Socket con el servidor Abierto!");
+                Log.e("TCPClient", "alej: Socket con el servidor Abierto para 1 comando!");
 
 
                 //in this while the client listens for the messages sent by the server
@@ -80,6 +80,7 @@ public class TCPClient {
                     serverMessage = in.readLine();
                     if (serverMessage != null && mMessageListener != null) {
                         //call the method messageReceived from MyActivity class
+                        Log.e("TCPClient", "alej: Received Message: '" + serverMessage + "'");
                         mMessageListener.messageReceived(serverMessage);
                     }
                     serverMessage = null;
@@ -130,7 +131,7 @@ public class TCPClient {
                         serverMessage = null;
                     }
                     Log.e("TCPClient", "alej: Comando "+idx+": "+txt);
-                    Thread.sleep(5000);//delay en la ejecucion de cada comando
+                    Thread.sleep(1000);//delay en la ejecucion de cada comando
                 }
                 socket.close();
             } catch(Exception e){ Log.e("TCP", "S: Error", e);}
