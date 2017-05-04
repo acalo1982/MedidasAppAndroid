@@ -21,6 +21,7 @@ public class OpcionesFragment extends PreferenceFragment {
             @Override
             public boolean onPreferenceClick(Preference preference) {
                 Toast.makeText(getActivity(), "Lectura del Background", Toast.LENGTH_SHORT).show();
+
                 return true;
             }
         });

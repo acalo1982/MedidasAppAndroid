@@ -22,7 +22,8 @@ public class MainActivity extends AppCompatActivity {
     private TCPClientv2 mTcpClientv2;
     private int conectado=0;//monitoriza el estado de conexión al VNA
     private String S11;
-
+    private LineGraphSeries<DataPoint> mSeries2;
+    private GraphView graph;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -32,6 +33,17 @@ public class MainActivity extends AppCompatActivity {
         // OPCIONES RELACIONADAS CON LA ACTIONBAR
         setContentView(R.layout.activity_main);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);//evitamos que el salvapantallas aparezca en esta Actividad
+        //int flg=View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+//                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+//                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+//                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+//                | View.SYSTEM_UI_FLAG_FULLSCREEN
+//                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY; //en modo inmersivo: fullscreen + actionbar y softbar aparece/desaparece
+        //flg=View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
+        //flg=View.SYSTEM_UI_FLAG_FULLSCREEN;
+        //getWindow().getDecorView().setSystemUiVisibility(flg);
+        //getSupportActionBar().show();
+
 //        getSupportActionBar().setDisplayShowTitleEnabled(true);
 //        getSupportActionBar().setTitle("Ale");
 //        getSupportActionBar().setIcon(R.drawable.dani_icon);
@@ -41,24 +53,26 @@ public class MainActivity extends AppCompatActivity {
         //getSupportActionBar().setDisplayUseLogoEnabled(true);
 
         //CREAMOS UNOS EJES Y UNA CURVA DE EJEMPLO
-        GraphView graph = (GraphView) findViewById(R.id.graph);
-        DataPoint[] points = new DataPoint[100]; // array de objetos DataPoint
-        for (int i = 0; i < points.length; i++) { //inicializamos el array de DataPoints con valores (x,y)
-            points[i] = new DataPoint(i, Math.sin(i * 0.5) * 10 * (Math.random() * 10 + 1));
-        }
-        LineGraphSeries<DataPoint> series = new LineGraphSeries<>(points); //Creamos una curva a partir del array de puntos
+         graph = (GraphView) findViewById(R.id.graph);
+//        DataPoint[] points = new DataPoint[100]; // array de objetos DataPoint
+//        for (int i = 0; i < points.length; i++) { //inicializamos el array de DataPoints con valores (x,y)
+//            points[i] = new DataPoint(i, Math.sin(i * 0.5) * 10 * (Math.random() * 10 + 1));
+//        }
+        //LineGraphSeries<DataPoint> series = new LineGraphSeries<>(points); //Creamos una curva a partir del array de puntos
+//        mSeries2 = new LineGraphSeries<>();//creamos una serie vacia (la serie puede contener multiples curvas: DataPoints)
+//        graph.addSeries(mSeries2);//añadimos la serie a los ejes
         // set manual Y bounds
         graph.getViewport().setYAxisBoundsManual(true);
-        graph.getViewport().setMinY(-150);
-        graph.getViewport().setMaxY(150);
+        graph.getViewport().setMinY(-35);
+        graph.getViewport().setMaxY(2);
         // set manual X bounds
         graph.getViewport().setXAxisBoundsManual(true);
-        graph.getViewport().setMinX(4);
-        graph.getViewport().setMaxX(80);
+        graph.getViewport().setMinX(2);
+        graph.getViewport().setMaxX(18);
         // enable scaling and scrolling
-        graph.getViewport().setScalable(true);
-        graph.getViewport().setScalableY(true);
-        graph.addSeries(series); //Dibuamos la curva sobre los ejes
+        graph.getViewport().setScalable(false);
+        graph.getViewport().setScalableY(false);
+        //graph.addSeries(curvas); //Dibuamos la curva sobre los ejes
 
 
         //EVENTO: PULSAR SOBRE EL EJE (LO TRATAREMOS COMO UN OBJETO VIEW)
@@ -72,38 +86,60 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
+            if (hasFocus) {
+                getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+            }
+        }
+    }
+
     public void lecturaS11(String msg){
         //LECTURA de los datos del VNA
         //new connectTask().execute(":CALC:DATA:SDAT?");
         S11=msg;
-        Log.e("MainActivity", "alej: Mensaje recibido por el hilo de escucha: '" + S11 + "'");
+        //Toast.makeText(getApplicationContext(), "Num de puntos: " + msg.length() + " Leído S11=" + msg, Toast.LENGTH_SHORT).show();
+
+        //Borramos las curvas antiguas y Creamos una nueva
+        graph.removeAllSeries();//borramos todas las curvas pintadas hasta entonces
+        mSeries2 = new LineGraphSeries<>();//creamos una serie vacia (la serie puede contener multiples curvas: DataPoints)
+        graph.addSeries(mSeries2);//añadimos la serie a los ejes
+
+
         //Convertimos el String en DataPoint
         String[] S11_list=S11.split(",");
         int N=S11_list.length/2;//string array con la parte real y compleja del S11 para cada freq
-        int df=(18-2)/(N-1);//incremento en freq
+        double df=(double) (18-2)/(N-1);//incremento en freq
+        Toast.makeText(getApplicationContext(), "alej: (Num de puntos,S11(1),df) = ("+N+","+S11_list[0]+","+df+")", Toast.LENGTH_SHORT).show();
+
         DataPoint[] points = new DataPoint[N];
         for (int i = 0; i < N; i+=2) {
             double yR=Float.parseFloat(S11_list[i]);
             double yI=Float.parseFloat(S11_list[i+1]);
             double M=Math.sqrt(Math.pow(yR,2)+Math.pow(yI,2));//modulo
-            points[i] = new DataPoint(2+i*df,M);
+            M=20*Math.log10(M);//modulo en dB
+            double x=(double)2+i*df;
+            points[i] = new DataPoint(x,M);
+            mSeries2.appendData(points[i],true,N);
+            Log.e("DataPoint", "alej: (x,y)=("+(x)+","+(M)+")");
         }
 
+//        Test: Si la serie es creada en tiempo de compilación funciona, si no (creada en runtime), no funciona de este modo
+//        DataPoint[] points = new DataPoint[100]; // array de objetos DataPoint
+//        for (int i = 0; i < points.length; i++) { //inicializamos el array de DataPoints con valores (x,y)
+//            points[i] = new DataPoint(i, Math.sin(i * 0.5) * 10 * (Math.random() * 10 + 1));
+//        }
+//        LineGraphSeries<DataPoint> series = new LineGraphSeries<>(points); //Creamos una curva a partir del array de puntos
+        //graph.addSeries(series); //Dibuamos la curva sobre los ejes
+
         //Dibujamos la curva leida
-        GraphView graph = (GraphView) findViewById(R.id.graph);
-        LineGraphSeries<DataPoint> series = new LineGraphSeries<>(points); //Creamos una curva a partir del array de puntos
-        // set manual Y bounds
-        graph.getViewport().setYAxisBoundsManual(true);
-        graph.getViewport().setMinY(-35);
-        graph.getViewport().setMaxY(5);
-        // set manual X bounds
-        graph.getViewport().setXAxisBoundsManual(true);
-        graph.getViewport().setMinX(2);
-        graph.getViewport().setMaxX(18);
-        // enable scaling and scrolling
-        graph.getViewport().setScalable(true);
-        graph.getViewport().setScalableY(true);
-        graph.addSeries(series); //Dibuamos la curva sobre los ejes
+        //Log.e("lecturaS11", "alej: GraphView obj = "+graph);
+
     }
 
     //Asociamos el menu a la ActionBar por defecto de la App
@@ -174,7 +210,7 @@ public class MainActivity extends AppCompatActivity {
         protected void onProgressUpdate(String... values) {
             super.onProgressUpdate(values);
             String msg=values[0];
-            Toast.makeText(getApplicationContext(), "Num de puntos: " + msg.length() + " Leído S11=" + S11, Toast.LENGTH_SHORT).show();
+            //Toast.makeText(getApplicationContext(), "Num de puntos: " + msg.length() + " Leído S11=" + msg, Toast.LENGTH_SHORT).show();
             lecturaS11(msg);//Tras recibir un msg, llamamos a la función que lo procesa
             //mTcpClient.stopClient();
         }
