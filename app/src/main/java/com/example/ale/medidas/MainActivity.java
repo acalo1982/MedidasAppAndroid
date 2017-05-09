@@ -17,7 +17,8 @@ import android.content.pm.ActivityInfo;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Toast;
-
+import fastandroid.neoncore.*;//Importamos las clases q implementan la fft
+import fastandroid.neoncore.collection.FaCollection;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -150,8 +151,9 @@ public class MainActivity extends AppCompatActivity {
         Toast.makeText(getApplicationContext(), "Freq range: [" + pref.getString("freq1", "")+","+ pref.getString("freqEnd", "")+"] Filtro: "+pref.getString("filtro", ""), Toast.LENGTH_SHORT).show();
 
         //Realizamos la FFT
-
-
+        //FaCollection.fft_float32();
+        String test_neon = FaCollection.test_fft();
+        Toast.makeText(getApplicationContext(), "FFT test con FaCollection: "+test_neon, Toast.LENGTH_SHORT).show();
     }
 
     //Asociamos el menu a la ActionBar por defecto de la App
