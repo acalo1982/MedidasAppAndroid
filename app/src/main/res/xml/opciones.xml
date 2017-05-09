@@ -5,7 +5,7 @@
         <Preference android:title="Background" android:key="background"/>
         <Preference android:title="Reference" android:key="reference"/>
         <Preference android:title="3rd Standard (optional)" android:key="plex2mm"/>
-
+        <!--android:textColor="#FF0000"--> Ver si cambia el color del texto del botón
     </PreferenceCategory>
 
     <PreferenceCategory android:title="Parametros Medidas">

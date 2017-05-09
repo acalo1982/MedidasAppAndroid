@@ -1,6 +1,8 @@
 package com.example.ale.medidas;
 
+import android.content.SharedPreferences;
 import android.os.AsyncTask;
+import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -15,6 +17,7 @@ import android.content.pm.ActivityInfo;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Toast;
+
 
 public class MainActivity extends AppCompatActivity {
 
@@ -115,18 +118,20 @@ public class MainActivity extends AppCompatActivity {
         String[] S11_list=S11.split(",");
         int N=S11_list.length/2;//string array con la parte real y compleja del S11 para cada freq
         double df=(double) (18-2)/(N-1);//incremento en freq
-        Toast.makeText(getApplicationContext(), "alej: (Num de puntos,S11(1),df) = ("+N+","+S11_list[0]+","+df+")", Toast.LENGTH_SHORT).show();
+        Toast.makeText(getApplicationContext(), "(Num de puntos,S11(1),df) = ("+N+","+S11_list[0]+","+df+")", Toast.LENGTH_SHORT).show();
 
         DataPoint[] points = new DataPoint[N];
-        for (int i = 0; i < N; i+=2) {
+        int idx=0;
+        for (int i = 0; i < 2*N; i+=2) {
             double yR=Float.parseFloat(S11_list[i]);
             double yI=Float.parseFloat(S11_list[i+1]);
             double M=Math.sqrt(Math.pow(yR,2)+Math.pow(yI,2));//modulo
             M=20*Math.log10(M);//modulo en dB
-            double x=(double)2+i*df;
-            points[i] = new DataPoint(x,M);
-            mSeries2.appendData(points[i],true,N);
-            Log.e("DataPoint", "alej: (x,y)=("+(x)+","+(M)+")");
+            double x=(double)2+idx*df;
+            points[idx] = new DataPoint(x,M);
+            mSeries2.appendData(points[idx],true,N);
+            idx+=1;//contador de 1 en 1
+            //Log.e("DataPoint", "alej: (x,y)=("+(x)+","+(M)+")");
         }
 
 //        Test: Si la serie es creada en tiempo de compilación funciona, si no (creada en runtime), no funciona de este modo
@@ -139,6 +144,13 @@ public class MainActivity extends AppCompatActivity {
 
         //Dibujamos la curva leida
         //Log.e("lecturaS11", "alej: GraphView obj = "+graph);
+
+        //Recuperamos los datos de la calibración
+        SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
+        Toast.makeText(getApplicationContext(), "Freq range: [" + pref.getString("freq1", "")+","+ pref.getString("freqEnd", "")+"] Filtro: "+pref.getString("filtro", ""), Toast.LENGTH_SHORT).show();
+
+        //Realizamos la FFT
+
 
     }
 
