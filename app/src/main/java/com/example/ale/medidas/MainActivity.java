@@ -1,6 +1,7 @@
 package com.example.ale.medidas;
 
 import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.os.AsyncTask;
 import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
@@ -17,17 +18,19 @@ import android.content.pm.ActivityInfo;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Toast;
-import fastandroid.neoncore.*;//Importamos las clases q implementan la fft
+//import fastandroid.neoncore.*;//Importamos las clases q implementan la fft
 import fastandroid.neoncore.collection.FaCollection;
 
 public class MainActivity extends AppCompatActivity {
 
     private TCPClient mTcpClient; //objeto que recivirá y enviará msg al servidor!
     private TCPClientv2 mTcpClientv2;
-    private int conectado=0;//monitoriza el estado de conexión al VNA
+    private int conectado = 0;//monitoriza el estado de conexión al VNA
     private String S11;
     private LineGraphSeries<DataPoint> mSeries2;
+    private LineGraphSeries<DataPoint> mSeries3;
     private GraphView graph;
+    private static double c = 0.3;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,7 +60,7 @@ public class MainActivity extends AppCompatActivity {
         //getSupportActionBar().setDisplayUseLogoEnabled(true);
 
         //CREAMOS UNOS EJES Y UNA CURVA DE EJEMPLO
-         graph = (GraphView) findViewById(R.id.graph);
+        graph = (GraphView) findViewById(R.id.graph);
 //        DataPoint[] points = new DataPoint[100]; // array de objetos DataPoint
 //        for (int i = 0; i < points.length; i++) { //inicializamos el array de DataPoints con valores (x,y)
 //            points[i] = new DataPoint(i, Math.sin(i * 0.5) * 10 * (Math.random() * 10 + 1));
@@ -103,10 +106,10 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public void lecturaS11(String msg){
+    public void lecturaS11(String msg) {
         //LECTURA de los datos del VNA
         //new connectTask().execute(":CALC:DATA:SDAT?");
-        S11=msg;
+        S11 = msg;
         //Toast.makeText(getApplicationContext(), "Num de puntos: " + msg.length() + " Leído S11=" + msg, Toast.LENGTH_SHORT).show();
 
         //Borramos las curvas antiguas y Creamos una nueva
@@ -114,26 +117,46 @@ public class MainActivity extends AppCompatActivity {
         mSeries2 = new LineGraphSeries<>();//creamos una serie vacia (la serie puede contener multiples curvas: DataPoints)
         graph.addSeries(mSeries2);//añadimos la serie a los ejes
 
+        //Recuperamos los datos de la calibración
+        SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
+        Toast.makeText(getApplicationContext(), "Freq range: [" + pref.getString("freq1", "") + "," + pref.getString("freqEnd", "") + "] Filtro: " + pref.getString("filtro", ""), Toast.LENGTH_SHORT).show();
 
-        //Convertimos el String en DataPoint
-        String[] S11_list=S11.split(",");
-        int N=S11_list.length/2;//string array con la parte real y compleja del S11 para cada freq
-        double df=(double) (18-2)/(N-1);//incremento en freq
-        Toast.makeText(getApplicationContext(), "(Num de puntos,S11(1),df) = ("+N+","+S11_list[0]+","+df+")", Toast.LENGTH_SHORT).show();
+        //Lectura del S11 del VNA (String)
+        String[] S11_list = S11.split(",");
+        int N = (int) Float.parseFloat(pref.getString("npoint", ""));
 
+        //VAlores de configuración: CaLibración
+        float fini=2;
+        float fstop=18;
+        float filtro=0.2f;//así se declara un número como float (32 bits)
+        if (pref.getString("freq1", "")!=null) {
+            fini = Float.parseFloat(pref.getString("freq1", ""));
+            fstop = Float.parseFloat(pref.getString("freqEnd", ""));
+            filtro = Float.parseFloat(pref.getString("filtro", ""));
+        }
+        double df = (double) (fstop - fini) / (N - 1);
+        Toast.makeText(getApplicationContext(), "(Num de puntos,S11(1),df) = (" + N + "," + S11_list[0] + "," + df + ")", Toast.LENGTH_SHORT).show();
+
+        //Conversión del S11 String to vectores
         DataPoint[] points = new DataPoint[N];
-        int idx=0;
-        for (int i = 0; i < 2*N; i+=2) {
-            double yR=Float.parseFloat(S11_list[i]);
-            double yI=Float.parseFloat(S11_list[i+1]);
-            double M=Math.sqrt(Math.pow(yR,2)+Math.pow(yI,2));//modulo
-            M=20*Math.log10(M);//modulo en dB
-            double x=(double)2+idx*df;
-            points[idx] = new DataPoint(x,M);
-            mSeries2.appendData(points[idx],true,N);
-            idx+=1;//contador de 1 en 1
+        int Nfft = (int) Math.pow(2, 10);//long del vector S11 (201 puntos) + zero padding (ceros hasta los 1024 puntos: 10 bits)
+        float[] Sr = new float[Nfft];//real
+        float[] Si = new float[Nfft];//imag
+        int idx = 0;
+        for (int i = 0; i < 2 * N; i += 2) {
+            double yR = Float.parseFloat(S11_list[i]);//real
+            double yI = Float.parseFloat(S11_list[i + 1]);//imag part
+            double M = Math.sqrt(Math.pow(yR, 2) + Math.pow(yI, 2));//modulo
+            M = 20 * Math.log10(M);//modulo en dB
+            double x = (double) 2 + idx * df;
+            points[idx] = new DataPoint(x, M);//puntos para ser pintados
+            mSeries2.appendData(points[idx], true, N);
+            Sr[idx] = (float) yR;//vector de datos de freq para la FFT
+            Si[idx] = (float) yI;
+            idx += 1;//contador de 1 en 1
             //Log.e("DataPoint", "alej: (x,y)=("+(x)+","+(M)+")");
         }
+        //Log.e("MainActivity", "alej: Sr["+ Nfft + "] = "+Sr[Nfft-1]);//comprobar que el vector se inicializa a 0 por defecto
 
 //        Test: Si la serie es creada en tiempo de compilación funciona, si no (creada en runtime), no funciona de este modo
 //        DataPoint[] points = new DataPoint[100]; // array de objetos DataPoint
@@ -146,14 +169,67 @@ public class MainActivity extends AppCompatActivity {
         //Dibujamos la curva leida
         //Log.e("lecturaS11", "alej: GraphView obj = "+graph);
 
-        //Recuperamos los datos de la calibración
-        SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
-        Toast.makeText(getApplicationContext(), "Freq range: [" + pref.getString("freq1", "")+","+ pref.getString("freqEnd", "")+"] Filtro: "+pref.getString("filtro", ""), Toast.LENGTH_SHORT).show();
 
-        //Realizamos la FFT
-        //FaCollection.fft_float32();
-        String test_neon = FaCollection.test_fft();
-        Toast.makeText(getApplicationContext(), "FFT test con FaCollection: "+test_neon, Toast.LENGTH_SHORT).show();
+        //Borramos los ejes
+        //graph.removeAllSeries();//borramos las series de los ejes
+        mSeries3 = new LineGraphSeries<>();
+        mSeries3.setColor(Color.GREEN);
+        graph.addSeries(mSeries3);//añadimos la serie a los ejes
+        DataPoint[] points3 = new DataPoint[Nfft];
+
+        //Test: funciona la librería de la FFT
+        //String test_neon = FaCollection.test_fft();
+        //Toast.makeText(getApplicationContext(), "FFT test con FaCollection: "+test_neon, Toast.LENGTH_SHORT).show();
+        //Log.e("MainActivity", "alej: FFT FaCollection: "+ test_neon);
+
+        //Realizamos la IFFT
+        float[] Sr_t = Sr;//copia de los valores en freq y tras la fft será rellenado cn los valores en el tiempo
+        float[] Si_t = Si;
+        //Log.e("lecturaS11", "alej: Antes de la FFT = " + Sr_t[Nfft - 1]);
+        FaCollection.ifft_float32(Sr_t, Si_t);//esta función modifica el contenido de las variables "Sr_t" y "Si_t" (como si fueran punteros!)
+
+
+        //Filtrado
+
+        //Realizamos "IFFT/Nfft"
+
+
+        //Pintamos la IFFT
+//        double dx = 1 / (df * Nfft)*c;//retardo de ida y vuelta (dividimos entre 2 la distancia!)
+//        double dmax =  1 / df * c;//retardo de ida y vuelta (dividimos entre 2 la distancia!)
+//        for (int i = 0; i < Nfft; i += 1) {
+//            double M = Math.sqrt(Math.pow(Sr_t[i], 2) + Math.pow(Si_t[i], 2));//modulo
+//            M = 20 * Math.log10(M);//modulo en dB
+//            double x = (double) i * dx/2;//retardo de ida y vuelta
+//            points3[i] = new DataPoint(x, M);
+//            mSeries3.appendData(points3[i], true, Nfft);
+//        }
+//        graph.getViewport().setYAxisBoundsManual(true);
+//        graph.getViewport().setMinY(-30);
+//        graph.getViewport().setMaxY(20);
+//        // set manual X bounds
+//        graph.getViewport().setXAxisBoundsManual(true);
+//        graph.getViewport().setMinX(0);
+//        graph.getViewport().setMaxX(18);
+
+        //Pintamos la operación inversa para ver si obtenemos la curva original "FFT(IFFT)": Para que sea correcto es necesario hacer "1/Nfft*FFT(IFFT)"
+        //(sólo pintamos los N primeros valores, pq los restantes hasta llegar a Nfft serán 0: zero padding!!)
+//        FaCollection.fft_float32(Sr_t, Si_t);
+//        for (int i = 0; i < N; i += 1) {
+//            double M = Math.sqrt(Math.pow(Sr_t[i], 2) + Math.pow(Si_t[i], 2));//modulo
+//            M = 20 * Math.log10(M / Nfft);//modulo en dB
+//            double x = (double) 2 + i * df;
+//            points3[i] = new DataPoint(x, M);
+//            mSeries3.appendData(points3[i], true, N);
+//        }
+//        graph.getViewport().setYAxisBoundsManual(true);
+//        graph.getViewport().setMinY(-35);
+//        graph.getViewport().setMaxY(2);
+//        // set manual X bounds
+//        graph.getViewport().setXAxisBoundsManual(true);
+//        graph.getViewport().setMinX(2);
+//        graph.getViewport().setMaxX(18);
+
     }
 
     //Asociamos el menu a la ActionBar por defecto de la App
@@ -183,11 +259,11 @@ public class MainActivity extends AppCompatActivity {
                     conectado = 1;
                     Log.e("ActionBar", "alej: Conectado: boton en rojo");
                     //Configuración del VNA
-                    String[] cmd_conf={":INST \"NA\"",":SOUR:POW:ALC HIGH",":INIT:CONT 1",":FREQ:STAR 2e9",":FREQ:STOP 18e9",":SWE:POIN 201",":BWID 1000",":AVER:COUN 1"};
+                    String[] cmd_conf = {":INST \"NA\"", ":SOUR:POW:ALC HIGH", ":INIT:CONT 1", ":FREQ:STAR 2e9", ":FREQ:STOP 18e9", ":SWE:POIN 201", ":BWID 1000", ":AVER:COUN 1"};
                     new connectTask().execute(cmd_conf);
                     //item.setIcon(android.R.drawable.presence_online);
                     item.setIcon(android.R.drawable.ic_notification_overlay);
-                }else{
+                } else {
                     conectado = 0;
                     item.setIcon(android.R.drawable.presence_invisible);
                     Log.e("ActionBar", "alej: Desconectado: boton en gris");
@@ -211,9 +287,9 @@ public class MainActivity extends AppCompatActivity {
                     publishProgress(message);
                 }
             });
-            if (message.length==1) { //Enviamos 1 comando
+            if (message.length == 1) { //Enviamos 1 comando
                 mTcpClient.run(message[0]); //abrimos el socket de comunicacion con el servidor
-            }else{ //Varios comandos a las vez
+            } else { //Varios comandos a las vez
                 mTcpClient.run(message);
             }
 
@@ -223,7 +299,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         protected void onProgressUpdate(String... values) {
             super.onProgressUpdate(values);
-            String msg=values[0];
+            String msg = values[0];
             //Toast.makeText(getApplicationContext(), "Num de puntos: " + msg.length() + " Leído S11=" + msg, Toast.LENGTH_SHORT).show();
             lecturaS11(msg);//Tras recibir un msg, llamamos a la función que lo procesa
             //mTcpClient.stopClient();

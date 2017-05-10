@@ -80,7 +80,7 @@ public class TCPClient {
                     serverMessage = in.readLine();
                     if (serverMessage != null && mMessageListener != null) {
                         //call the method messageReceived from MyActivity class
-                        Log.e("TCPClient", "alej: Received Message: '" + serverMessage + "'");
+                        //Log.e("TCPClient", "alej: Received Message: '" + serverMessage + "'");
                         mMessageListener.messageReceived(serverMessage);
                     }
                     serverMessage = null;
@@ -130,7 +130,7 @@ public class TCPClient {
                         }
                         serverMessage = null;
                     }
-                    Log.e("TCPClient", "alej: Comando "+idx+": "+txt);
+                    //Log.e("TCPClient", "alej: Comando "+idx+": "+txt);
                     Thread.sleep(1000);//delay en la ejecucion de cada comando
                 }
                 socket.close();
