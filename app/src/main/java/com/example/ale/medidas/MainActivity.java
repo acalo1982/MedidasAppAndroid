@@ -109,9 +109,7 @@ public class MainActivity extends AppCompatActivity {
 
     public void lecturaS11(String msg) {
         //LECTURA de los datos del VNA
-        //new connectTask().execute(":CALC:DATA:SDAT?");
         S11 = msg;
-        //Toast.makeText(getApplicationContext(), "Num de puntos: " + msg.length() + " Leído S11=" + msg, Toast.LENGTH_SHORT).show();
 
         //Borramos las curvas antiguas y Creamos una nueva
         graph.removeAllSeries();//borramos todas las curvas pintadas hasta entonces

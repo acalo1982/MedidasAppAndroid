@@ -27,7 +27,50 @@ public final class MathV {
         }
     }
 
+    //Suma de vectores componente a componente
+    public static double[] sumV(double[] v1, double[] v2) {
+        double[] v3 = null;
+        if (v1.length == v2.length) {
+            int N = v1.length;
+            for (int i = 0; i < N; i += 1) {
+                v3[i] = v1[i] + v2[2];
+            }
+            return v3;
+        } else {
+            return null;
+        }
+    }
+
+    //Suma ponderada de vectores componente a componente (puede tambien ser una resta: w1=1 y w2=-1 o al revés)
+    public static double[] sum_wV(double[] v1, double[] v2,double w1, double w2) {
+        double[] v3 = null;
+        if (v1.length == v2.length) {
+            int N = v1.length;
+            for (int i = 0; i < N; i += 1) {
+                v3[i] = w1*v1[i] + w2*v2[2];
+            }
+            return v3;
+        } else {
+            return null;
+        }
+    }
+
+
     //Modulo de 2 vectores uno a uno
+    public static double[] absdBV(double[] v1, double[] v2) {
+        double[] v3 = null;
+        if (v1.length == v2.length) {
+            int N = v1.length;
+            for (int i = 0; i < N; i += 1) {
+                double M = Math.sqrt(Math.pow(v1[i], 2) + Math.pow(v2[i], 2));//modulo
+                v3[i] = 20 * Math.log10(M);//modulo en dB
+            }
+            return v3;
+        } else {
+            return null;
+        }
+    }
+
     public static double[] absV(double[] v1, double[] v2) {
         double[] v3 = null;
         if (v1.length == v2.length) {
@@ -46,8 +89,8 @@ public final class MathV {
     public static MathDatos vna2ReIm(String S) {
         String[] s11 = S.split(",");//se divide el string en arrays d string con ls digitos en el formato "2.3E-2"
         int N = s11.length;//long del doble de elementos: los partes reales y imaginarias
-        float[] v1 = new float[N/2];
-        float[] v2 = new float[N/2];
+        float[] v1 = new float[N / 2];
+        float[] v2 = new float[N / 2];
         int idx = 0;
         for (int i = 0; i < 1 * N; i += 2) {
             v1[idx] = Float.parseFloat(s11[i]);//parte real
@@ -55,6 +98,14 @@ public final class MathV {
             idx += 1;
         }
         MathDatos v3 = new MathDatos(v1, v2);
+        return v3;
+    }
+
+    public static float[] w_hamming(int N) {
+        float[] v3 = new float[N];
+        for (int i = 0; i < N; i += 1) {
+            v3[i] = (float) (0.54 - 0.46 * Math.cos(2 * Math.PI / N * i));
+        }
         return v3;
     }
 }
