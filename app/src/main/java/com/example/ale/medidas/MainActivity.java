@@ -139,7 +139,7 @@ public class MainActivity extends AppCompatActivity {
         Toast.makeText(getApplicationContext(), "(Num de puntos,S11(1),df) = (" + N + "," + S11_list[0] + "," + df + ")", Toast.LENGTH_SHORT).show();
 
 
-        //S11 from String[] to float[]
+        //S11 from String to float[]
         MathDatos S = MathV.vna2ReIm(S11);
         float[] Sr2=Arrays.copyOf(S.v1(),Nfft);//zero padding para FFT
         float[] Si2=Arrays.copyOf(S.v2(),Nfft);//zero padding
