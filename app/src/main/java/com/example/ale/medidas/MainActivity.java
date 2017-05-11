@@ -18,7 +18,8 @@ import android.content.pm.ActivityInfo;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Toast;
-//import fastandroid.neoncore.*;//Importamos las clases q implementan la fft
+import java.util.Arrays;
+
 import fastandroid.neoncore.collection.FaCollection;
 
 public class MainActivity extends AppCompatActivity {
@@ -123,54 +124,30 @@ public class MainActivity extends AppCompatActivity {
 
         //Lectura del S11 del VNA (String)
         String[] S11_list = S11.split(",");
-        int N = (int) Float.parseFloat(pref.getString("npoint", ""));
 
         //VAlores de configuración: CaLibración
-        float fini=2;
-        float fstop=18;
-        float filtro=0.2f;//así se declara un número como float (32 bits)
-        if (pref.getString("freq1", "")!=null) {
+        float fini = 2;
+        float fstop = 18;
+        float filtro = 0.2f;//así se declara un número como float (32 bits)
+        int N = 201;
+        int Nfft = (int) Math.pow(2, 10);//long del vector S11 (201 puntos) + zero padding (ceros hasta los 1024 puntos: 10 bits)
+        if (pref.getString("freq1", "") != null) {
             fini = Float.parseFloat(pref.getString("freq1", ""));
             fstop = Float.parseFloat(pref.getString("freqEnd", ""));
             filtro = Float.parseFloat(pref.getString("filtro", ""));
+            N = (int) Float.parseFloat(pref.getString("npoint", ""));
         }
         double df = (double) (fstop - fini) / (N - 1);
         Toast.makeText(getApplicationContext(), "(Num de puntos,S11(1),df) = (" + N + "," + S11_list[0] + "," + df + ")", Toast.LENGTH_SHORT).show();
 
-        //Conversión del S11 String to vectores
-        DataPoint[] points = new DataPoint[N];
-        int Nfft = (int) Math.pow(2, 10);//long del vector S11 (201 puntos) + zero padding (ceros hasta los 1024 puntos: 10 bits)
-        float[] Sr = new float[Nfft];//real
-        float[] Si = new float[Nfft];//imag
-        int idx = 0;
-        for (int i = 0; i < 2 * N; i += 2) {
-            double yR = Float.parseFloat(S11_list[i]);//real
-            double yI = Float.parseFloat(S11_list[i + 1]);//imag part
-            double M = Math.sqrt(Math.pow(yR, 2) + Math.pow(yI, 2));//modulo
-            M = 20 * Math.log10(M);//modulo en dB
-            double x = (double) 2 + idx * df;
-            points[idx] = new DataPoint(x, M);//puntos para ser pintados
-            mSeries2.appendData(points[idx], true, N);
-            Sr[idx] = (float) yR;//vector de datos de freq para la FFT
-            Si[idx] = (float) yI;
-            idx += 1;//contador de 1 en 1
-            //Log.e("DataPoint", "alej: (x,y)=("+(x)+","+(M)+")");
-        }
-        //Log.e("MainActivity", "alej: Sr["+ Nfft + "] = "+Sr[Nfft-1]);//comprobar que el vector se inicializa a 0 por defecto
 
-//        Test: Si la serie es creada en tiempo de compilación funciona, si no (creada en runtime), no funciona de este modo
-//        DataPoint[] points = new DataPoint[100]; // array de objetos DataPoint
-//        for (int i = 0; i < points.length; i++) { //inicializamos el array de DataPoints con valores (x,y)
-//            points[i] = new DataPoint(i, Math.sin(i * 0.5) * 10 * (Math.random() * 10 + 1));
-//        }
-//        LineGraphSeries<DataPoint> series = new LineGraphSeries<>(points); //Creamos una curva a partir del array de puntos
-        //graph.addSeries(series); //Dibuamos la curva sobre los ejes
-
-        //Dibujamos la curva leida
-        //Log.e("lecturaS11", "alej: GraphView obj = "+graph);
+        //S11 from String[] to float[]
+        MathDatos S = MathV.vna2ReIm(S11);
+        float[] Sr2=Arrays.copyOf(S.v1(),Nfft);//zero padding para FFT
+        float[] Si2=Arrays.copyOf(S.v2(),Nfft);//zero padding
 
 
-        //Borramos los ejes
+        //Añadimos una nueva curva
         //graph.removeAllSeries();//borramos las series de los ejes
         mSeries3 = new LineGraphSeries<>();
         mSeries3.setColor(Color.GREEN);
@@ -183,34 +160,34 @@ public class MainActivity extends AppCompatActivity {
         //Log.e("MainActivity", "alej: FFT FaCollection: "+ test_neon);
 
         //Realizamos la IFFT
-        float[] Sr_t = Sr;//copia de los valores en freq y tras la fft será rellenado cn los valores en el tiempo
-        float[] Si_t = Si;
-        //Log.e("lecturaS11", "alej: Antes de la FFT = " + Sr_t[Nfft - 1]);
+        float[] Sr_t = Sr2;//copia de los valores en freq y tras la fft será rellenado cn los valores en el tiempo
+        float[] Si_t = Si2;
         FaCollection.ifft_float32(Sr_t, Si_t);//esta función modifica el contenido de las variables "Sr_t" y "Si_t" (como si fueran punteros!)
 
 
         //Filtrado
 
+
         //Realizamos "IFFT/Nfft"
 
 
         //Pintamos la IFFT
-//        double dx = 1 / (df * Nfft)*c;//retardo de ida y vuelta (dividimos entre 2 la distancia!)
-//        double dmax =  1 / df * c;//retardo de ida y vuelta (dividimos entre 2 la distancia!)
-//        for (int i = 0; i < Nfft; i += 1) {
-//            double M = Math.sqrt(Math.pow(Sr_t[i], 2) + Math.pow(Si_t[i], 2));//modulo
-//            M = 20 * Math.log10(M);//modulo en dB
-//            double x = (double) i * dx/2;//retardo de ida y vuelta
-//            points3[i] = new DataPoint(x, M);
-//            mSeries3.appendData(points3[i], true, Nfft);
-//        }
-//        graph.getViewport().setYAxisBoundsManual(true);
-//        graph.getViewport().setMinY(-30);
-//        graph.getViewport().setMaxY(20);
-//        // set manual X bounds
-//        graph.getViewport().setXAxisBoundsManual(true);
-//        graph.getViewport().setMinX(0);
-//        graph.getViewport().setMaxX(18);
+        double dx = 1 / (df * Nfft) * c;//retardo de ida y vuelta (dividimos entre 2 la distancia!)
+        double dmax = 1 / df * c;//retardo de ida y vuelta (dividimos entre 2 la distancia!)
+        for (int i = 0; i < Nfft; i += 1) {
+            double M = Math.sqrt(Math.pow(Sr_t[i], 2) + Math.pow(Si_t[i], 2));//modulo
+            M = 20 * Math.log10(M);//modulo en dB
+            double x = (double) i * dx / 2;//retardo de ida y vuelta
+            points3[i] = new DataPoint(x, M);
+            mSeries3.appendData(points3[i], true, Nfft);
+        }
+        graph.getViewport().setYAxisBoundsManual(true);
+        graph.getViewport().setMinY(-20);
+        graph.getViewport().setMaxY(40);
+        // set manual X bounds
+        graph.getViewport().setXAxisBoundsManual(true);
+        graph.getViewport().setMinX(0);
+        graph.getViewport().setMaxX(dmax/2);
 
         //Pintamos la operación inversa para ver si obtenemos la curva original "FFT(IFFT)": Para que sea correcto es necesario hacer "1/Nfft*FFT(IFFT)"
         //(sólo pintamos los N primeros valores, pq los restantes hasta llegar a Nfft serán 0: zero padding!!)
