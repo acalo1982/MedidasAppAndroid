@@ -42,12 +42,12 @@ public final class MathV {
     }
 
     //Suma ponderada de vectores componente a componente (puede tambien ser una resta: w1=1 y w2=-1 o al revés)
-    public static double[] sum_wV(double[] v1, double[] v2,double w1, double w2) {
+    public static double[] sum_wV(double[] v1, double[] v2, double w1, double w2) {
         double[] v3 = null;
         if (v1.length == v2.length) {
             int N = v1.length;
             for (int i = 0; i < N; i += 1) {
-                v3[i] = w1*v1[i] + w2*v2[2];
+                v3[i] = w1 * v1[i] + w2 * v2[2];
             }
             return v3;
         } else {
@@ -69,6 +69,7 @@ public final class MathV {
             return null;
         }
     }
+
     //Modulo de 2 vectores uno a uno (float)
     public static float[] absdBV(float[] v1, float[] v2) {
         float[] v3 = null;
@@ -76,7 +77,7 @@ public final class MathV {
             int N = v1.length;
             double M;
             for (int i = 0; i < N; i += 1) {
-                 M =  Math.sqrt(Math.pow(v1[i], 2) + Math.pow(v2[i], 2));//modulo
+                M = Math.sqrt(Math.pow(v1[i], 2) + Math.pow(v2[i], 2));//modulo
                 v3[i] = (float) (20 * Math.log10(M));//modulo en dB
             }
             return v3;
@@ -84,14 +85,32 @@ public final class MathV {
             return null;
         }
     }
-    //Modulo de 2 vectores uno a uno: MathDatos
-    public static float[] absdBV(MathDatos a1, MathDatos a2) {
-        float[] v3 = null;
-        float[] v1=a1.v1();
-        float[] v2=a1.v2();
-        return absdBV(v1,v2);
-    }
 
+    //Modulo de cada una de las componentes de un vector complejo: MathDatos
+    public static float[] absdBV(MathDatos a1) {
+        float[] v3 = null;
+        float[] v1 = a1.v1();
+        float[] v2 = a1.v2();
+        return absdBV(v1, v2);
+    }
+    //Modulo de la combinación de 2 vectores
+    public static double[] absdB_wV(MathDatos a1, MathDatos a2, double w1, double w2) {
+        double[] v3 = null;
+        float[] v1Re = a1.v1();
+        float[] v1Im = a1.v2();
+        float[] v2Re = a2.v1();
+        float[] v2Im = a2.v2();
+        double M1,M2;
+        if (v1Re.length == v2Re.length) {
+            int N = v1Re.length;
+            for (int i = 0; i < N; i += 1) {
+                M1 = Math.sqrt(Math.pow(v1Re[i], 2) + Math.pow(v1Im[i], 2));//modulo1
+                M2 = Math.sqrt(Math.pow(v2Re[i], 2) + Math.pow(v2Im[i], 2));//modulo2
+                v3[i] = Math.abs(M1-M2);//diferencia entre los modulos para cada componente del vector
+            }
+        }
+        return v3;
+    }
 
     //Modulo de 2 vectores en unidades naturales
     public static double[] absV(double[] v1, double[] v2) {
@@ -132,11 +151,15 @@ public final class MathV {
         return v3;
     }
 
-    public static MathDatos[] filtrar(MathDatos[] Scal) {
-        MathDatos[] Sfil=new MathDatos[3];
-        MathDatos Sb_t=Scal[0];//back
-        MathDatos Sr_t=Scal[1];//ref
-        MathDatos Sm_t=Scal[2];//med
+    public static MathDatos[] filtrar(MathDatos[] Scal, double dR) {
+        MathDatos[] Sfil = new MathDatos[3];
+        //CaL y Medida
+        MathDatos Sb_t = Scal[0];//back
+        MathDatos Sr_t = Scal[1];//ref
+        MathDatos Sm_t = Scal[2];//med
+
+        //Posicion de filtrado: distancia a la que ocurre la reflex.
+        double[] dist=absdB_wV(Sb_t, Sr_t, 1, -1);
 
         return Sfil;
     }

@@ -124,6 +124,8 @@ public class MainActivity extends AppCompatActivity {
 
     public void lecturaS11(String msg) {
         //LECTURA de los datos del VNA
+        //Modo Offline para Testeo: Cogemos siempre un valor de medida almacenados en fichero de conf. /data/data/com.example.ale.medidas/shared_prefs/*.xml
+        msg=PreferenceManager.getDefaultSharedPreferences(this).getString("medida", "");
         S11 = msg;
 
         //Borramos las curvas antiguas y Creamos una nueva
@@ -137,17 +139,14 @@ public class MainActivity extends AppCompatActivity {
         SharedPreferences.Editor editor = pref.edit();
         editor.putString("medida", msg);
         editor.commit();
-
-
         //Toast.makeText(getApplicationContext(), "Freq range: [" + pref.getString("freq1", "") + "," + pref.getString("freqEnd", "") + "] Filtro: " + pref.getString("filtro", ""), Toast.LENGTH_SHORT).show();
 
-        //Lectura del S11 del VNA (String)
-        String[] S11_list = S11.split(",");
+
 
         //VAlores de configuración
         float fini = 2;
         float fstop = 18;
-        float dR = 0.2f;//así se declara un número como float (32 bits)
+        double dR = 0.2;//así se declara un número como float (32 bits)
         int N = 201;
         int Nfft = (int) Math.pow(2, 10);//long del vector S11 (201 puntos) + zero padding (ceros hasta los 1024 puntos: 10 bits)
         if (pref.getString("freq1", "") != null) {
@@ -226,7 +225,7 @@ public class MainActivity extends AppCompatActivity {
         MathDatos[] Sparam=new MathDatos[]{Sb_t,Sr_t,Sm_t};//array de objetos MathDatos (CaL y Medida)
 
         //Filtrado
-        //MathV.filtrar(Sparam);
+        MathDatos[] Sfil=MathV.filtrar(Sparam,dR);
 
         //Realizamos "IFFT/Nfft"
 
