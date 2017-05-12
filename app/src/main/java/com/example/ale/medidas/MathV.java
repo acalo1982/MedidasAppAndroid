@@ -55,7 +55,6 @@ public final class MathV {
         }
     }
 
-
     //Modulo de 2 vectores uno a uno
     public static double[] absdBV(double[] v1, double[] v2) {
         double[] v3 = null;
@@ -70,7 +69,31 @@ public final class MathV {
             return null;
         }
     }
+    //Modulo de 2 vectores uno a uno (float)
+    public static float[] absdBV(float[] v1, float[] v2) {
+        float[] v3 = null;
+        if (v1.length == v2.length) {
+            int N = v1.length;
+            double M;
+            for (int i = 0; i < N; i += 1) {
+                 M =  Math.sqrt(Math.pow(v1[i], 2) + Math.pow(v2[i], 2));//modulo
+                v3[i] = (float) (20 * Math.log10(M));//modulo en dB
+            }
+            return v3;
+        } else {
+            return null;
+        }
+    }
+    //Modulo de 2 vectores uno a uno: MathDatos
+    public static float[] absdBV(MathDatos a1, MathDatos a2) {
+        float[] v3 = null;
+        float[] v1=a1.v1();
+        float[] v2=a1.v2();
+        return absdBV(v1,v2);
+    }
 
+
+    //Modulo de 2 vectores en unidades naturales
     public static double[] absV(double[] v1, double[] v2) {
         double[] v3 = null;
         if (v1.length == v2.length) {
@@ -107,6 +130,15 @@ public final class MathV {
             v3[i] = (float) (0.54 - 0.46 * Math.cos(2 * Math.PI / N * i));
         }
         return v3;
+    }
+
+    public static MathDatos[] filtrar(MathDatos[] Scal) {
+        MathDatos[] Sfil=new MathDatos[3];
+        MathDatos Sb_t=Scal[0];//back
+        MathDatos Sr_t=Scal[1];//ref
+        MathDatos Sm_t=Scal[2];//med
+
+        return Sfil;
     }
 }
 

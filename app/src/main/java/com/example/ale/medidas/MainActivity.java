@@ -18,6 +18,7 @@ import android.content.pm.ActivityInfo;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Toast;
+
 import java.util.Arrays;
 
 import fastandroid.neoncore.collection.FaCollection;
@@ -27,11 +28,25 @@ public class MainActivity extends AppCompatActivity {
     private TCPClient mTcpClient; //objeto que recivirá y enviará msg al servidor!
     private TCPClientv2 mTcpClientv2;
     private int conectado = 0;//monitoriza el estado de conexión al VNA
-    private String S11;
     private LineGraphSeries<DataPoint> mSeries2;
     private LineGraphSeries<DataPoint> mSeries3;
     private GraphView graph;
     private static double c = 0.3;
+    private String S11;
+    private MathDatos S11m = null;
+    private MathDatos S11back = null;
+    private MathDatos S11ref = null;
+    private MathDatos S11std3 = null;
+
+//    @Override
+//    protected void onResume(){
+//        super.onResume();  // Always call the superclass method first
+//        //Comprueba cuando vengamos de vuelta de la pantalla de configuración, q tenemos la calibración
+//        if (Sback==null){}
+//        if (Sref==null){}
+//        if (S3std==null){}
+//
+//    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -116,33 +131,71 @@ public class MainActivity extends AppCompatActivity {
         mSeries2 = new LineGraphSeries<>();//creamos una serie vacia (la serie puede contener multiples curvas: DataPoints)
         graph.addSeries(mSeries2);//añadimos la serie a los ejes
 
-        //Recuperamos los datos de la calibración
+        //Recuperamos la configuración
         SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
-        Toast.makeText(getApplicationContext(), "Freq range: [" + pref.getString("freq1", "") + "," + pref.getString("freqEnd", "") + "] Filtro: " + pref.getString("filtro", ""), Toast.LENGTH_SHORT).show();
+        //Guardamos la medida en la preferencia (fase de testeo: para ir probando cosas con datos correctos)
+        SharedPreferences.Editor editor = pref.edit();
+        editor.putString("medida", msg);
+        editor.commit();
+
+
+        //Toast.makeText(getApplicationContext(), "Freq range: [" + pref.getString("freq1", "") + "," + pref.getString("freqEnd", "") + "] Filtro: " + pref.getString("filtro", ""), Toast.LENGTH_SHORT).show();
 
         //Lectura del S11 del VNA (String)
         String[] S11_list = S11.split(",");
 
-        //VAlores de configuración: CaLibración
+        //VAlores de configuración
         float fini = 2;
         float fstop = 18;
-        float filtro = 0.2f;//así se declara un número como float (32 bits)
+        float dR = 0.2f;//así se declara un número como float (32 bits)
         int N = 201;
         int Nfft = (int) Math.pow(2, 10);//long del vector S11 (201 puntos) + zero padding (ceros hasta los 1024 puntos: 10 bits)
         if (pref.getString("freq1", "") != null) {
             fini = Float.parseFloat(pref.getString("freq1", ""));
             fstop = Float.parseFloat(pref.getString("freqEnd", ""));
-            filtro = Float.parseFloat(pref.getString("filtro", ""));
+            dR = Float.parseFloat(pref.getString("filtro", ""));
             N = (int) Float.parseFloat(pref.getString("npoint", ""));
         }
         double df = (double) (fstop - fini) / (N - 1);
-        Toast.makeText(getApplicationContext(), "(Num de puntos,S11(1),df) = (" + N + "," + S11_list[0] + "," + df + ")", Toast.LENGTH_SHORT).show();
+        //Toast.makeText(getApplicationContext(), "(Num de puntos,S11(1),df) = (" + N + "," + S11_list[0] + "," + df + ")", Toast.LENGTH_SHORT).show();
+
+        //Medida y Recuperar CaL: Back, ref y 3erStd
+        String back = pref.getString("background", "");
+        String ref = pref.getString("reference", "");
+        String std3 = pref.getString("plex2mm", "");
+        String med = pref.getString("medida", "");
+
+        String txt = "";
+        if (back.equals("")) {
+            txt += "Back";
+        }
+        if (ref.equals("")) {
+            txt += ".Ref";
+        }
+        if (!txt.equals("")) {
+            Toast.makeText(getApplicationContext(), "CaL Incompleta! Falta: " + txt, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (std3.equals("")) {
+            S11std3 = MathV.vna2ReIm(std3);
+        }
+        //String[] to Vectors
+        S11m = MathV.vna2ReIm(S11);
+        S11back = MathV.vna2ReIm(back);
+        S11ref = MathV.vna2ReIm(ref);
+        //Testeo
+        Toast.makeText(getApplicationContext(), "CaL S11back N = "+ Nfft +" S11 = " + back, Toast.LENGTH_SHORT).show();
+        Toast.makeText(getApplicationContext(), "CaL S11ref N = "+ Nfft +" S11 = " + ref, Toast.LENGTH_SHORT).show();
+        Toast.makeText(getApplicationContext(), "CaL S11m N = "+ Nfft +" S11 = " + med, Toast.LENGTH_SHORT).show();
 
 
-        //S11 from String to float[]
-        MathDatos S = MathV.vna2ReIm(S11);
-        float[] Sr2=Arrays.copyOf(S.v1(),Nfft);//zero padding para FFT
-        float[] Si2=Arrays.copyOf(S.v2(),Nfft);//zero padding
+        //Zero padding para la IFFT
+        float[] Sb_Re = Arrays.copyOf(S11back.v1(), Nfft);//Background
+        float[] Sb_Im = Arrays.copyOf(S11back.v2(), Nfft);
+        float[] Sr_Re = Arrays.copyOf(S11ref.v1(), Nfft); //Reference
+        float[] Sr_Im = Arrays.copyOf(S11ref.v2(), Nfft);
+        float[] Sm_Re = Arrays.copyOf(S11m.v1(), Nfft);   //Medida
+        float[] Sm_Im = Arrays.copyOf(S11m.v2(), Nfft);
 
 
         //Añadimos una nueva curva
@@ -158,13 +211,22 @@ public class MainActivity extends AppCompatActivity {
         //Log.e("MainActivity", "alej: FFT FaCollection: "+ test_neon);
 
         //Realizamos la IFFT
-        float[] Sr_t = Sr2;//copia de los valores en freq y tras la fft será rellenado cn los valores en el tiempo
-        float[] Si_t = Si2;
-        FaCollection.ifft_float32(Sr_t, Si_t);//esta función modifica el contenido de las variables "Sr_t" y "Si_t" (como si fueran punteros!)
-
+        float[] Sb_Re_t = Sb_Re;//copia de los valores en freq y tras la fft será rellenado cn los valores en el tiempo
+        float[] Sb_Im_t = Sb_Im;
+        float[] Sr_Re_t = Sr_Re;
+        float[] Sr_Im_t = Sr_Im;
+        float[] Sm_Re_t = Sm_Re;
+        float[] Sm_Im_t = Sm_Im;
+        FaCollection.ifft_float32(Sb_Re_t, Sb_Im_t);//esta función modifica el contenido de las variables "Sr_t" y "Si_t" (como si fueran punteros!)
+        FaCollection.ifft_float32(Sr_Re_t, Sr_Im_t);
+        FaCollection.ifft_float32(Sm_Re_t, Sm_Im_t);
+        MathDatos Sb_t = new MathDatos(Sb_Re_t, Sb_Im_t);
+        MathDatos Sr_t = new MathDatos(Sr_Re_t, Sr_Im_t);
+        MathDatos Sm_t = new MathDatos(Sm_Re_t, Sm_Im_t);
+        MathDatos[] Sparam=new MathDatos[]{Sb_t,Sr_t,Sm_t};//array de objetos MathDatos (CaL y Medida)
 
         //Filtrado
-
+        //MathV.filtrar(Sparam);
 
         //Realizamos "IFFT/Nfft"
 
@@ -173,7 +235,7 @@ public class MainActivity extends AppCompatActivity {
         double dx = 1 / (df * Nfft) * c;//retardo de ida y vuelta (dividimos entre 2 la distancia!)
         double dmax = 1 / df * c;//retardo de ida y vuelta (dividimos entre 2 la distancia!)
         for (int i = 0; i < Nfft; i += 1) {
-            double M = Math.sqrt(Math.pow(Sr_t[i], 2) + Math.pow(Si_t[i], 2));//modulo
+            double M = Math.sqrt(Math.pow(Sm_Re_t[i], 2) + Math.pow(Sm_Im_t[i], 2));//modulo
             M = 20 * Math.log10(M);//modulo en dB
             double x = (double) i * dx / 2;//retardo de ida y vuelta
             points3[i] = new DataPoint(x, M);
@@ -185,7 +247,7 @@ public class MainActivity extends AppCompatActivity {
         // set manual X bounds
         graph.getViewport().setXAxisBoundsManual(true);
         graph.getViewport().setMinX(0);
-        graph.getViewport().setMaxX(dmax/2);
+        graph.getViewport().setMaxX(dmax / 2);
 
         //Pintamos la operación inversa para ver si obtenemos la curva original "FFT(IFFT)": Para que sea correcto es necesario hacer "1/Nfft*FFT(IFFT)"
         //(sólo pintamos los N primeros valores, pq los restantes hasta llegar a Nfft serán 0: zero padding!!)
