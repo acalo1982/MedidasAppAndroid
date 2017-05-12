@@ -149,14 +149,16 @@ public class MainActivity extends AppCompatActivity {
         double dR = 0.2;//así se declara un número como float (32 bits)
         int N = 201;
         int Nfft = (int) Math.pow(2, 10);//long del vector S11 (201 puntos) + zero padding (ceros hasta los 1024 puntos: 10 bits)
+
         if (pref.getString("freq1", "") != null) {
             fini = Float.parseFloat(pref.getString("freq1", ""));
             fstop = Float.parseFloat(pref.getString("freqEnd", ""));
             dR = Float.parseFloat(pref.getString("filtro", ""));
             N = (int) Float.parseFloat(pref.getString("npoint", ""));
+            Toast.makeText(getApplicationContext(), "(Num de puntos,filtro) = (" + N + "," + dR + ")", Toast.LENGTH_SHORT).show();
         }
         double df = (double) (fstop - fini) / (N - 1);
-        //Toast.makeText(getApplicationContext(), "(Num de puntos,S11(1),df) = (" + N + "," + S11_list[0] + "," + df + ")", Toast.LENGTH_SHORT).show();
+        Toast.makeText(getApplicationContext(), "(Num de puntos,df) = (" + N + "," + df + ")", Toast.LENGTH_SHORT).show();
 
         //Medida y Recuperar CaL: Back, ref y 3erStd
         String back = pref.getString("background", "");
@@ -225,7 +227,7 @@ public class MainActivity extends AppCompatActivity {
         MathDatos[] Sparam=new MathDatos[]{Sb_t,Sr_t,Sm_t};//array de objetos MathDatos (CaL y Medida)
 
         //Filtrado
-        MathDatos[] Sfil=MathV.filtrar(Sparam,dR);
+        //MathDatos[] Sfil=MathV.filtrar(Sparam,dR);
 
         //Realizamos "IFFT/Nfft"
 
