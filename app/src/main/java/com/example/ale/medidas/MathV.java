@@ -32,7 +32,7 @@ public final class MathV {
             int N = v1.length;
             v3 = new double[N];
             for (int i = 0; i < N; i += 1) {
-                v3[i] = v1[i] * v2[2];
+                v3[i] = v1[i] * v2[i];
             }
             return v3;
         } else {
@@ -47,7 +47,7 @@ public final class MathV {
             int N = v1.length;
             v3 = new float[N];
             for (int i = 0; i < N; i += 1) {
-                v3[i] = v1[i] * v2[2];
+                v3[i] = v1[i] * v2[i];
             }
             return v3;
         } else {
@@ -62,7 +62,7 @@ public final class MathV {
             int N = v1.length;
             v3 = new float[N];
             for (int i = 0; i < N; i += 1) {
-                v3[i] = k * v1[i] * v2[2];
+                v3[i] = k * v1[i] * v2[i];
             }
             return v3;
         } else {
@@ -77,7 +77,7 @@ public final class MathV {
             int N = v1.length;
             v3 = new double[N];
             for (int i = 0; i < N; i += 1) {
-                v3[i] = v1[i] + v2[2];
+                v3[i] = v1[i] + v2[i];
             }
             return v3;
         } else {
@@ -92,7 +92,7 @@ public final class MathV {
             int N = v1.length;
             v3 = new double[N];
             for (int i = 0; i < N; i += 1) {
-                v3[i] = w1 * v1[i] + w2 * v2[2];
+                v3[i] = w1 * v1[i] + w2 * v2[i];
             }
             return v3;
         } else {
@@ -107,7 +107,7 @@ public final class MathV {
             int N = v1.length;
             v3 = new float[N];
             for (int i = 0; i < N; i += 1) {
-                v3[i] = (float) (w1 * v1[i] + w2 * v2[2]);
+                v3[i] = (float) (w1 * v1[i] + w2 * v2[i]);
             }
             return v3;
         } else {
@@ -121,16 +121,17 @@ public final class MathV {
         float[] v3Re;
         float[] v3Im;
         float[] v1Re = v1.v1();
-        float[] v1Im = v1.v1();
+        float[] v1Im = v1.v2();
         float[] v2Re = v2.v1();
-        float[] v2Im = v2.v1();
+        float[] v2Im = v2.v2();
         if (v1Re.length == v2Re.length) {
             int N = v1Re.length;
             v3Re = new float[N];
             v3Im = new float[N];
             for (int i = 0; i < N; i += 1) {
-                v3Re[i] = (float) (w1 * v1Re[i] + w2 * v2Re[2]);
-                v3Im[i] = (float) (w1 * v1Im[i] + w2 * v2Im[2]);
+                v3Re[i] = (float) (w1 * v1Re[i] + w2 * v2Re[i]);
+                v3Im[i] = (float) (w1 * v1Im[i] + w2 * v2Im[i]);
+                //Log.e("sum_wV","alej: [idx, Rre, Rim] = ["+i+", "+v3Re[i]+", "+v3Im[i]+"]");
             }
             v3 = new MathDatos(v3Re, v3Im);
             return v3;
@@ -155,13 +156,15 @@ public final class MathV {
             v3Im = new float[N];
             for (int i = 0; i < N; i += 1) {
                 M1 = Math.sqrt(Math.pow(v1Re[i], 2) + Math.pow(v1Im[i], 2));//modulo1
-                F1 = Math.atan2(v1Im[i], v1Re[i]);//fase1
+                F1 = Math.atan(v1Im[i] / v1Re[i]);//fase1
                 M2 = Math.sqrt(Math.pow(v2Re[i], 2) + Math.pow(v2Im[i], 2));//modulo2
-                F2 = Math.atan2(v2Im[i], v2Re[i]);//fase2
+                //F2 = Math.atan2(v2Im[i], v2Re[i]);//fase2
+                F2 = Math.atan(v2Im[i] / v2Re[i]);//fase2
                 Mt = w1 * M1 / M2;//modulo de la division
                 Ft = F1 - F2;//fase de la division de 2 num complejos
                 v3Re[i] = (float) (Mt * Math.cos(Ft));
                 v3Im[i] = (float) (Mt * Math.sin(Ft));
+                Log.e("div_wV", "alej: [idx, Rre, Rim] = [" + i + ", " + v3Re[i] + ", " + v3Im[i] + "]");
             }
             C = new MathDatos(v3Re, v3Im);
         }
@@ -262,7 +265,7 @@ public final class MathV {
     public static float[] w_hamming(int N) {
         float[] v3 = new float[N];
         for (int i = 0; i < N; i += 1) {
-            v3[i] = (float) (0.54 - 0.46 * Math.cos(2 * Math.PI / N * i));
+            v3[i] = (float) (0.54 - 0.46 * Math.cos(2 * Math.PI / (double) (N - 1) * i));
         }
         return v3;
     }
@@ -299,7 +302,7 @@ public final class MathV {
         float[] SmIm_part = ArrayUtils.subarray(Sm_t.v2(), pos1, pos2);
         filt = w_hamming(L);//hamming window
         float k = (float) (1 / N);//(la división es convertida a un INT antes de hacerse: redondeada a cero; y luego ese 0, pasado a float: 0.0)cte para constrarrestar el efecto de la fft (que necesita ser multiplicada por el factor 1/Nfft)
-        double k1= 1/(double)N;//así si ven los decimales
+        double k1 = 1 / (double) N;//así si ven los decimales
         Log.e("MathV.filtrar", "alej: [N, L, k, pos_max, pos1, pos2] = [" + N + ", " + L + ", " + k1 + ", " + pos_max + ", " + pos1 + ", " + pos2 + "]");
         //Background
         SbRe_part = prodV(SbRe_part, filt);
@@ -320,7 +323,7 @@ public final class MathV {
         System.arraycopy(SmIm_part, 0, SmIm2, pos1, L);
         Sm_t = new MathDatos(SmRe2, SmIm2);
 
-        Log.e("MathV.filtrar", "alej: [Sb_t, Sr_t, Sm_t] = [" + Sb_t.v1()[pos_max-L/2-1] + ", " + Sr_t.v1()[pos_max-L/2-1] + ", " + Sm_t.v1()[pos_max-L/2-1] + "]");
+        //Log.e("MathV.filtrar", "alej: [Sb_t, Sr_t, Sm_t] = [" + Sb_t.v1()[pos_max-L/2-1] + ", " + Sr_t.v1()[pos_max-L/2-1] + ", " + Sm_t.v1()[pos_max-L/2-1] + "]");
 
         //S-Matrix filtrada: lista para la CaL y la Med
         Scal[0] = Sb_t;
@@ -335,8 +338,8 @@ public final class MathV {
     }
 
     //Filtrado con una ventana Hamming de la CaL y la Med (Scal_t: valores en el dominio del espacio, no freq!)
-    public static MathDatos calBackRef(MathDatos[] Scal_t) {
-        MathDatos R;
+    public static MathDatos[] calBackRef(MathDatos[] Scal_t) {
+        MathDatos[] R = new MathDatos[3];
 
         //Matriz de CaL filtrada
         MathDatos Sb_t = Scal_t[0];
@@ -350,17 +353,27 @@ public final class MathV {
         float[] Sr2Im = Sr_t.v2();
         float[] Sm2Re = Sm_t.v1();
         float[] Sm2Im = Sm_t.v2();
+        int N = Sm2Im.length;
+        double k = (1 / (double) N);//factor q necesita corregirse al hacer "y=FFT(IFFT(y))*1/N"
         FaCollection.fft_float32(Sb2Re, Sb2Im);
         FaCollection.fft_float32(Sr2Re, Sr2Im);
         FaCollection.fft_float32(Sm2Re, Sm2Im);
 
         //Estandares de CaL en la freq (ya filtrados en espacio): reusamos los objetos, para instanciar más
-        Sb_t = new MathDatos(Sb2Re, Sb2Im);//freq
-        Sr_t = new MathDatos(Sr2Re, Sr2Im);
-        Sm_t = new MathDatos(Sm2Re, Sm2Im);
+        MathDatos Sb2 = new MathDatos(Sb2Re, Sb2Im);//freq
+        MathDatos Sr2 = new MathDatos(Sr2Re, Sr2Im);
+        MathDatos Sm2 = new MathDatos(Sm2Re, Sm2Im);
 
         //CaL: calibración sencilla: R=Rpec*(Sm-Sb)/(Sr-Sb)=-1*(Sm-Sb)/(Sr-Sb)!!
-        R = div_wV(sum_wV(Sm_t, Sb_t, 1, -1), sum_wV(Sr_t, Sb_t, 1, -1), -1);
+        MathDatos s1 = sum_wV(Sm2, Sb2, 1, -1);
+        MathDatos s2 = sum_wV(Sr2, Sb2, 1, -1);
+        MathDatos r = div_wV(s1, s2, -1);
+        R[0] = r;
+        //R[0] = s1;
+        //R[1] = s2;
+        //R[2] = r;
+
+        //Log.e("MathV.filtrar", "alej: [N, k, R, Sb2, Sr2, Sm2] = [" + N + ", " + k + ", " + r.v1()[0] + ", " + Sb_t.v1()[0] + ", " + Sr_t.v1()[0] + ", " + Sm_t.v1()[0] + "]");
 
         return R;
     }
@@ -404,7 +417,34 @@ public final class MathV {
         for (int i = 0; i < Nfft; i += 1) {
             double M = Math.sqrt(Math.pow(Sm_Re_t[i], 2) + Math.pow(Sm_Im_t[i], 2));//modulo
             M = 20 * Math.log10(M);//modulo en dB
-            double x = (double) i * dx / 2;//retardo de ida y vuelta
+            double x = (double) i * dx;//retardo de ida y vuelta
+            points3[i] = new DataPoint(x, M);
+            mSerie.appendData(points3[i], true, Nfft);
+        }
+        graph.getViewport().setYAxisBoundsManual(true);
+        graph.getViewport().setMinY(ylim[0]);
+        graph.getViewport().setMaxY(ylim[1]);
+        // set manual X bounds
+        graph.getViewport().setXAxisBoundsManual(true);
+        graph.getViewport().setMinX(xlim[0]);
+        graph.getViewport().setMaxX(xlim[1]);
+    }
+
+    //Metodo para pintar una gráfica en unos ejes, dando los ejes y creando un objeto curva en cada llamada
+    public static void pintarSerie(GraphView graph, int cl, MathDatos Sm, double dx, double[] xlim, double[] ylim, double fini, int Nmax) {
+        LineGraphSeries<DataPoint> mSerie = new LineGraphSeries<>();
+        graph.addSeries(mSerie);//añadimos la serie a los ejes
+        mSerie.setColor(cl);
+        float[] Sm_Re_t = Sm.v1();
+        float[] Sm_Im_t = Sm.v2();
+        //int Nfft = Sm_Re_t.length
+        int Nfft = Nmax;
+        DataPoint[] points3 = new DataPoint[Nfft];
+        //Pintamos la IFFT
+        for (int i = 0; i < Nfft; i += 1) {
+            double M = Math.sqrt(Math.pow(Sm_Re_t[i], 2) + Math.pow(Sm_Im_t[i], 2));//modulo
+            M = 20 * Math.log10(M);//modulo en dB
+            double x = fini + i * dx;//retardo de ida y vuelta
             points3[i] = new DataPoint(x, M);
             mSerie.appendData(points3[i], true, Nfft);
         }

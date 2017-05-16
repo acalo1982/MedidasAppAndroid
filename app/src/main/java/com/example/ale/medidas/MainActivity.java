@@ -149,13 +149,17 @@ public class MainActivity extends AppCompatActivity {
             fstop = Float.parseFloat(pref.getString("freqEnd", ""));
             dR = Float.parseFloat(pref.getString("filtro", ""));
             N = (int) Float.parseFloat(pref.getString("npoint", ""));
-            Toast.makeText(getApplicationContext(), "(Num de puntos,filtro) = (" + N + "," + dR + ")", Toast.LENGTH_SHORT).show();
+            Toast.makeText(getApplicationContext(), "(Num de puntos, filtro) = (" + N + "," + dR + ")", Toast.LENGTH_SHORT).show();
         }
-        double df = (double) (fstop - fini) / (N - 1);
+        double df = (double) (fstop - fini) / (double)(N - 1);
+        double df2 = (double) (fstop - fini) / (double)(Nfft - 1);
         double[] xlimF = new double[]{fini, fstop};
         double[] ylimF = new double[]{-35, 5};
-
-        Toast.makeText(getApplicationContext(), "(Num de puntos,df) = (" + N + "," + df + ")", Toast.LENGTH_SHORT).show();
+        double dx = 1 / (df * Nfft) * c;//retardo de ida y vuelta (dividimos entre 2 la distancia!)
+        double dmax = 1 / df * c;//retardo de ida y vuelta (dividimos entre 2 la distancia!)
+        double[] xlim = new double[]{0, dmax / 2};
+        double[] ylim = new double[]{-20, 40};
+        //Toast.makeText(getApplicationContext(), "(Num de puntos,df) = (" + N + "," + df + ")", Toast.LENGTH_SHORT).show();
 
         //Medida y Recuperar CaL: Back, ref y 3erStd
         String back = pref.getString("background", "");
@@ -218,26 +222,25 @@ public class MainActivity extends AppCompatActivity {
         //graph.removeAllSeries();//borramos las series de los ejes
         //mSeries3 = new LineGraphSeries<>();
         //LineGraphSeries<DataPoint> mSeries4 = new LineGraphSeries<>();
-        double dx = 1 / (df * Nfft) * c;//retardo de ida y vuelta (dividimos entre 2 la distancia!)
-        double dmax = 1 / df * c;//retardo de ida y vuelta (dividimos entre 2 la distancia!)
-        double[] xlim = new double[]{0, dmax / 2};
-        double[] ylim = new double[]{-20, 40};
-        //MathV.pintarSerie(graph, Color.RED, Sb_t, dx, xlim, ylim);
-        //MathV.pintarSerie(graph, Color.BLUE, Sr_t, dx, xlim, ylim);//pinta la curva sobre los ejes
-        //MathV.pintarSerie(graph, Color.GREEN, Sm_t, dx, xlim, ylim);
+
+        //MathV.pintarSerie(graph, Color.RED, Sb_t, dx/2, xlim, ylim);//retardo de ida y vuelta
+        //MathV.pintarSerie(graph, Color.BLUE, Sr_t, dx/2, xlim, ylim);
+        //MathV.pintarSerie(graph, Color.GREEN, Sm_t, dx/2, xlim, ylim);
 
         //Filtrado y CaL
         MathDatos[] Scal_t = MathV.filtrar(Sparam, dR, dx);
+//        MathV.pintarSerie(graph, Color.RED, Scal_t[0], dx, xlim, ylim);
+//        MathV.pintarSerie(graph, Color.BLUE, Scal_t[1], dx, xlim, ylim);
+//        MathV.pintarSerie(graph, Color.GREEN, Scal_t[2], dx, xlim, ylim);
+//        MathV.pintarSerie(graph, Color.BLACK, Sb_t, dx, xlim, ylim);
 
         //Realizamos "IFFT/Nfft"
-        MathDatos R = MathV.calBackRef(Scal_t);
-//        float[] SmRe2 = R.v1();
-//        float[] SmIm2 = R.v2();
-//        FaCollection.fft_float32(SmRe2, SmIm2);
-//        MathDatos Sm2 = new MathDatos(SmRe2, SmIm2);
+        graph.removeAllSeries();//borramos las series de los ejes
+        MathDatos[] S2 = MathV.calBackRef(Scal_t);
+        MathDatos R=S2[0];
 
         //Grafica: medida filtrada
-        MathV.pintarSerie(graph, Color.BLUE, R, df, xlimF, ylimF);
+        MathV.pintarSerie(graph, Color.GREEN, R, df, xlimF, ylimF,fini,N);
 
 
         //Pintamos la operación inversa para ver si obtenemos la curva original "FFT(IFFT)": Para que sea correcto es necesario hacer "1/Nfft*FFT(IFFT)"
