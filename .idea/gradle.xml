@@ -9,6 +9,7 @@
           <set>
             <option value="$PROJECT_DIR$" />
             <option value="$PROJECT_DIR$/app" />
+            <option value="$PROJECT_DIR$/commons-lang3-3.5" />
             <option value="$PROJECT_DIR$/neoncore-release" />
           </set>
         </option>

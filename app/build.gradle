@@ -29,4 +29,5 @@ dependencies {
     testCompile 'junit:junit:4.12'
     compile files('libs/GraphView-4.2.1.jar')
     compile project(':neoncore-release')
+    compile project(':commons-lang3-3.5')
 }

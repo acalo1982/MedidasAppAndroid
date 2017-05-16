@@ -85,8 +85,6 @@ public class TCPClient {
                     }
                     serverMessage = null;
                 }
-                //Log.e("TCPClient", "alej: Comando: "+ txt + " fin_string= "+str_end);
-                //Log.e("TCPClient", "alej: Received Message: '" + serverMessage + "'");
                 socket.close();
 
             } catch (Exception e) {

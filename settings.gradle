@@ -1,1 +1,1 @@
-include ':app', ':neoncore-release'
+include ':app', ':neoncore-release', ':commons-lang3-3.5'

@@ -102,8 +102,8 @@ public class MainActivity extends AppCompatActivity {
         graph.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                //lecturaS11(view);
-                new connectTask().execute(":CALC:DATA:SDAT?");
+                lecturaS11(null);//debug en Modo Offline
+                //new connectTask().execute(":CALC:DATA:SDAT?");//debug en Modo Offline
             }
         });
     }
@@ -125,22 +125,17 @@ public class MainActivity extends AppCompatActivity {
     public void lecturaS11(String msg) {
         //LECTURA de los datos del VNA
         //Modo Offline para Testeo: Cogemos siempre un valor de medida almacenados en fichero de conf. /data/data/com.example.ale.medidas/shared_prefs/*.xml
-        msg=PreferenceManager.getDefaultSharedPreferences(this).getString("medida", "");
+        msg = PreferenceManager.getDefaultSharedPreferences(this).getString("medida", "");
         S11 = msg;
-
-        //Borramos las curvas antiguas y Creamos una nueva
-        graph.removeAllSeries();//borramos todas las curvas pintadas hasta entonces
-        mSeries2 = new LineGraphSeries<>();//creamos una serie vacia (la serie puede contener multiples curvas: DataPoints)
-        graph.addSeries(mSeries2);//añadimos la serie a los ejes
 
         //Recuperamos la configuración
         SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
-        //Guardamos la medida en la preferencia (fase de testeo: para ir probando cosas con datos correctos)
-        SharedPreferences.Editor editor = pref.edit();
-        editor.putString("medida", msg);
-        editor.commit();
-        //Toast.makeText(getApplicationContext(), "Freq range: [" + pref.getString("freq1", "") + "," + pref.getString("freqEnd", "") + "] Filtro: " + pref.getString("filtro", ""), Toast.LENGTH_SHORT).show();
 
+        //Guardamos la medida en la preferencia (fase de testeo: para ir probando cosas con datos correctos)
+//        SharedPreferences.Editor editor = pref.edit();
+//        editor.putString("medida", msg);
+//        editor.commit();
+        //Toast.makeText(getApplicationContext(), "Freq range: [" + pref.getString("freq1", "") + "," + pref.getString("freqEnd", "") + "] Filtro: " + pref.getString("filtro", ""), Toast.LENGTH_SHORT).show();
 
 
         //VAlores de configuración
@@ -149,7 +144,6 @@ public class MainActivity extends AppCompatActivity {
         double dR = 0.2;//así se declara un número como float (32 bits)
         int N = 201;
         int Nfft = (int) Math.pow(2, 10);//long del vector S11 (201 puntos) + zero padding (ceros hasta los 1024 puntos: 10 bits)
-
         if (pref.getString("freq1", "") != null) {
             fini = Float.parseFloat(pref.getString("freq1", ""));
             fstop = Float.parseFloat(pref.getString("freqEnd", ""));
@@ -158,14 +152,16 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(getApplicationContext(), "(Num de puntos,filtro) = (" + N + "," + dR + ")", Toast.LENGTH_SHORT).show();
         }
         double df = (double) (fstop - fini) / (N - 1);
+        double[] xlimF = new double[]{fini, fstop};
+        double[] ylimF = new double[]{-35, 5};
+
         Toast.makeText(getApplicationContext(), "(Num de puntos,df) = (" + N + "," + df + ")", Toast.LENGTH_SHORT).show();
 
         //Medida y Recuperar CaL: Back, ref y 3erStd
         String back = pref.getString("background", "");
         String ref = pref.getString("reference", "");
         String std3 = pref.getString("plex2mm", "");
-        String med = pref.getString("medida", "");
-
+        //String med = pref.getString("medida", "");
         String txt = "";
         if (back.equals("")) {
             txt += "Back";
@@ -180,14 +176,14 @@ public class MainActivity extends AppCompatActivity {
         if (std3.equals("")) {
             S11std3 = MathV.vna2ReIm(std3);
         }
-        //String[] to Vectors
+        //String to Vectors
         S11m = MathV.vna2ReIm(S11);
         S11back = MathV.vna2ReIm(back);
         S11ref = MathV.vna2ReIm(ref);
         //Testeo
-        Toast.makeText(getApplicationContext(), "CaL S11back N = "+ Nfft +" S11 = " + back, Toast.LENGTH_SHORT).show();
-        Toast.makeText(getApplicationContext(), "CaL S11ref N = "+ Nfft +" S11 = " + ref, Toast.LENGTH_SHORT).show();
-        Toast.makeText(getApplicationContext(), "CaL S11m N = "+ Nfft +" S11 = " + med, Toast.LENGTH_SHORT).show();
+//        Toast.makeText(getApplicationContext(), "CaL S11back N = "+ Nfft +" S11 = " + back, Toast.LENGTH_SHORT).show();
+//        Toast.makeText(getApplicationContext(), "CaL S11ref N = "+ Nfft +" S11 = " + ref, Toast.LENGTH_SHORT).show();
+//        Toast.makeText(getApplicationContext(), "CaL S11m N = "+ Nfft +" S11 = " + med, Toast.LENGTH_SHORT).show();
 
 
         //Zero padding para la IFFT
@@ -197,14 +193,6 @@ public class MainActivity extends AppCompatActivity {
         float[] Sr_Im = Arrays.copyOf(S11ref.v2(), Nfft);
         float[] Sm_Re = Arrays.copyOf(S11m.v1(), Nfft);   //Medida
         float[] Sm_Im = Arrays.copyOf(S11m.v2(), Nfft);
-
-
-        //Añadimos una nueva curva
-        //graph.removeAllSeries();//borramos las series de los ejes
-        mSeries3 = new LineGraphSeries<>();
-        mSeries3.setColor(Color.GREEN);
-        graph.addSeries(mSeries3);//añadimos la serie a los ejes
-        DataPoint[] points3 = new DataPoint[Nfft];
 
         //Test: funciona la librería de la FFT
         //String test_neon = FaCollection.test_fft();
@@ -224,49 +212,37 @@ public class MainActivity extends AppCompatActivity {
         MathDatos Sb_t = new MathDatos(Sb_Re_t, Sb_Im_t);
         MathDatos Sr_t = new MathDatos(Sr_Re_t, Sr_Im_t);
         MathDatos Sm_t = new MathDatos(Sm_Re_t, Sm_Im_t);
-        MathDatos[] Sparam=new MathDatos[]{Sb_t,Sr_t,Sm_t};//array de objetos MathDatos (CaL y Medida)
-
-        //Filtrado
-        //MathDatos[] Sfil=MathV.filtrar(Sparam,dR);
-
-        //Realizamos "IFFT/Nfft"
-
+        MathDatos[] Sparam = new MathDatos[]{Sb_t, Sr_t, Sm_t};//array de objetos MathDatos (CaL y Medida)
 
         //Pintamos la IFFT
+        //graph.removeAllSeries();//borramos las series de los ejes
+        //mSeries3 = new LineGraphSeries<>();
+        //LineGraphSeries<DataPoint> mSeries4 = new LineGraphSeries<>();
         double dx = 1 / (df * Nfft) * c;//retardo de ida y vuelta (dividimos entre 2 la distancia!)
         double dmax = 1 / df * c;//retardo de ida y vuelta (dividimos entre 2 la distancia!)
-        for (int i = 0; i < Nfft; i += 1) {
-            double M = Math.sqrt(Math.pow(Sm_Re_t[i], 2) + Math.pow(Sm_Im_t[i], 2));//modulo
-            M = 20 * Math.log10(M);//modulo en dB
-            double x = (double) i * dx / 2;//retardo de ida y vuelta
-            points3[i] = new DataPoint(x, M);
-            mSeries3.appendData(points3[i], true, Nfft);
-        }
-        graph.getViewport().setYAxisBoundsManual(true);
-        graph.getViewport().setMinY(-20);
-        graph.getViewport().setMaxY(40);
-        // set manual X bounds
-        graph.getViewport().setXAxisBoundsManual(true);
-        graph.getViewport().setMinX(0);
-        graph.getViewport().setMaxX(dmax / 2);
+        double[] xlim = new double[]{0, dmax / 2};
+        double[] ylim = new double[]{-20, 40};
+        //MathV.pintarSerie(graph, Color.RED, Sb_t, dx, xlim, ylim);
+        //MathV.pintarSerie(graph, Color.BLUE, Sr_t, dx, xlim, ylim);//pinta la curva sobre los ejes
+        //MathV.pintarSerie(graph, Color.GREEN, Sm_t, dx, xlim, ylim);
+
+        //Filtrado y CaL
+        MathDatos[] Scal_t = MathV.filtrar(Sparam, dR, dx);
+
+        //Realizamos "IFFT/Nfft"
+        MathDatos R = MathV.calBackRef(Scal_t);
+//        float[] SmRe2 = R.v1();
+//        float[] SmIm2 = R.v2();
+//        FaCollection.fft_float32(SmRe2, SmIm2);
+//        MathDatos Sm2 = new MathDatos(SmRe2, SmIm2);
+
+        //Grafica: medida filtrada
+        MathV.pintarSerie(graph, Color.BLUE, R, df, xlimF, ylimF);
+
 
         //Pintamos la operación inversa para ver si obtenemos la curva original "FFT(IFFT)": Para que sea correcto es necesario hacer "1/Nfft*FFT(IFFT)"
         //(sólo pintamos los N primeros valores, pq los restantes hasta llegar a Nfft serán 0: zero padding!!)
 //        FaCollection.fft_float32(Sr_t, Si_t);
-//        for (int i = 0; i < N; i += 1) {
-//            double M = Math.sqrt(Math.pow(Sr_t[i], 2) + Math.pow(Si_t[i], 2));//modulo
-//            M = 20 * Math.log10(M / Nfft);//modulo en dB
-//            double x = (double) 2 + i * df;
-//            points3[i] = new DataPoint(x, M);
-//            mSeries3.appendData(points3[i], true, N);
-//        }
-//        graph.getViewport().setYAxisBoundsManual(true);
-//        graph.getViewport().setMinY(-35);
-//        graph.getViewport().setMaxY(2);
-//        // set manual X bounds
-//        graph.getViewport().setXAxisBoundsManual(true);
-//        graph.getViewport().setMinX(2);
-//        graph.getViewport().setMaxX(18);
 
     }
 
