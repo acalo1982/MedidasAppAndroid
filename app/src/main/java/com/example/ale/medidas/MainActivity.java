@@ -19,6 +19,7 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.Toast;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 
 import fastandroid.neoncore.collection.FaCollection;
@@ -37,8 +38,10 @@ public class MainActivity extends AppCompatActivity {
     private MathDatos S11back = null;
     private MathDatos S11ref = null;
     private MathDatos S11std3 = null;
-    private MathDatos[] S11meas = null; //contiene la lista de medidas hasta ahora
-
+    private MathDatos Rcoef = null;//coef. S11 calibrado (con filtrado mediante FFT)
+    private ArrayList<MathDatos> Rlist = new ArrayList<>();//array con las medidas realizadas hasta ahora
+    private MathDatos Rmedia;
+    private confFreq confF;//param para pintar las graf en freq
 //    @Override
 //    protected void onResume(){
 //        super.onResume();  // Always call the superclass method first
@@ -78,14 +81,6 @@ public class MainActivity extends AppCompatActivity {
 
         //CREAMOS UNOS EJES Y UNA CURVA DE EJEMPLO
         graph = (GraphView) findViewById(R.id.graph);
-//        DataPoint[] points = new DataPoint[100]; // array de objetos DataPoint
-//        for (int i = 0; i < points.length; i++) { //inicializamos el array de DataPoints con valores (x,y)
-//            points[i] = new DataPoint(i, Math.sin(i * 0.5) * 10 * (Math.random() * 10 + 1));
-//        }
-        //LineGraphSeries<DataPoint> series = new LineGraphSeries<>(points); //Creamos una curva a partir del array de puntos
-//        mSeries2 = new LineGraphSeries<>();//creamos una serie vacia (la serie puede contener multiples curvas: DataPoints)
-//        graph.addSeries(mSeries2);//añadimos la serie a los ejes
-        // set manual Y bounds
         graph.getViewport().setYAxisBoundsManual(true);
         graph.getViewport().setMinY(-35);
         graph.getViewport().setMaxY(2);
@@ -96,7 +91,6 @@ public class MainActivity extends AppCompatActivity {
         // enable scaling and scrolling
         graph.getViewport().setScalable(false);
         graph.getViewport().setScalableY(false);
-        //graph.addSeries(curvas); //Dibuamos la curva sobre los ejes
 
 
         //EVENTO: PULSAR SOBRE EL EJE (LO TRATAREMOS COMO UN OBJETO VIEW)
@@ -105,6 +99,15 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View view) {
                 //lecturaS11(null);//debug en Modo Offline
                 new connectTask().execute(":CALC:DATA:SDAT?");//debug en Modo Online
+            }
+        });
+
+        //EVENTO: PULSACIÓN LARGA SOBRE EL EJE
+        graph.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View view) {
+                borrarRlist();
+                return true;
             }
         });
     }
@@ -123,6 +126,28 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    //Borramos la última medida almacenada
+    public void borrarRlist() {
+        int Nmeas = Rlist.size();
+        if (Nmeas > 1) {
+            Rlist.remove(Nmeas - 1);//eliminamos el último elemento
+            Rmedia = MathV.media(Rlist);//actualizamos la media actual (tras el borrado)
+            Rcoef=Rlist.get(Rlist.size()-1);//actualizamos la última medida actual
+
+            //Grafica: medida filtrada
+            graph.removeAllSeries();//borramos las series de los ejes
+            MathV.pintarSerie(graph, Color.BLUE, Rcoef, confF.df, confF.xlimF, confF.ylimF, confF.fini, confF.N);
+            MathV.pintarSerie(graph, Color.BLACK, Rmedia, confF.df, confF.xlimF, confF.ylimF, confF.fini, confF.N);
+        }
+        if (Nmeas==1){
+            Rlist.remove(Nmeas - 1);//eliminamos el único elemento
+            Rcoef=null;
+            Rmedia=null;
+            graph.removeAllSeries();//borramos los ejes
+        }
+    }
+
+    //Cada petición de lectura: Leer S11, Calibrarlo con Filtrado con FFT y Pintar Media actual y Medida
     public void lecturaS11(String msg) {
         //LECTURA de los datos del VNA
         //Modo Offline para Testeo: Cogemos siempre un valor de medida almacenados en fichero de conf. /data/data/com.example.ale.medidas/shared_prefs/*.xml
@@ -159,6 +184,8 @@ public class MainActivity extends AppCompatActivity {
         double dmax = 1 / df * c;//retardo de ida y vuelta (dividimos entre 2 la distancia!)
         double[] xlim = new double[]{0, dmax / 2};
         double[] ylim = new double[]{-20, 40};
+        confF = new confFreq(df, xlimF, ylimF, fini, fstop, N);//guardamos la conf de medida
+
         //Toast.makeText(getApplicationContext(), "(Num de puntos,df) = (" + N + "," + df + ")", Toast.LENGTH_SHORT).show();
 
         //Medida y Recuperar CaL: Back, ref y 3erStd
@@ -184,6 +211,7 @@ public class MainActivity extends AppCompatActivity {
         S11m = MathV.vna2ReIm(S11);
         S11back = MathV.vna2ReIm(back);
         S11ref = MathV.vna2ReIm(ref);
+
         //Testeo
 //        Toast.makeText(getApplicationContext(), "CaL S11back N = "+ Nfft +" S11 = " + back, Toast.LENGTH_SHORT).show();
 //        Toast.makeText(getApplicationContext(), "CaL S11ref N = "+ Nfft +" S11 = " + ref, Toast.LENGTH_SHORT).show();
@@ -225,11 +253,17 @@ public class MainActivity extends AppCompatActivity {
 
         //Realizamos "IFFT/Nfft"
         MathDatos[] S2 = MathV.calBackRef(Scal_t);
-        MathDatos R = S2[0];//S11 de la medida calibrado!
+        Rcoef = S2[0];//S11 de la medida calibrado!
+
+        //Añadimos la nueva medida a la lista de medidas
+        Rlist.add(Rcoef);
+        Rmedia = MathV.media(Rlist);//última media
+
 
         //Grafica: medida filtrada
         graph.removeAllSeries();//borramos las series de los ejes
-        MathV.pintarSerie(graph, Color.GREEN, R, df, xlimF, ylimF, fini, N);
+        MathV.pintarSerie(graph, Color.BLUE, Rcoef, df, xlimF, ylimF, fini, N);
+        MathV.pintarSerie(graph, Color.BLACK, Rmedia, df, xlimF, ylimF, fini, N);
 
         //Pintamos la operación inversa para ver si obtenemos la curva original "FFT(IFFT)": Para que sea correcto es necesario hacer "1/Nfft*FFT(IFFT)"
         //(sólo pintamos los N primeros valores, pq los restantes hasta llegar a Nfft serán 0: zero padding!!)

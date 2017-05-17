@@ -10,6 +10,8 @@ import com.jjoe64.graphview.series.LineGraphSeries;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 
+import java.util.ArrayList;
+
 import fastandroid.neoncore.collection.FaCollection;
 
 /**
@@ -456,34 +458,81 @@ public final class MathV {
         graph.getViewport().setMinX(xlim[0]);
         graph.getViewport().setMaxX(xlim[1]);
     }
+
+
+    public static MathDatos media(ArrayList<MathDatos> S11list) {
+        MathDatos m = null;
+        int Nmeas = S11list.size();//num de medidas en el array
+        int Nfreq;
+        float[] v3Re, v3Im;
+
+        if (Nmeas > 1) { //Si hay elementos en la lista, realizamos la media
+            Nfreq = S11list.get(0).v1().length;//num de puntos de freq
+            v3Re = new float[Nfreq];
+            v3Im = new float[Nfreq];
+            for (int i = 0; i < Nfreq; i += 1) {
+                for (int j = 0; j < Nmeas; j += 1) {
+                    v3Re[i] = v3Re[i] + S11list.get(j).v1()[i]; //suma, para cada freq, de las medidas realizadas (parte Real e Im)
+                    v3Im[i] = v3Re[i] + S11list.get(j).v2()[i];
+                }
+                v3Re[i] = v3Re[i] / (float) Nmeas;//convertimos antes "Nmeas" a float para q la división no se convierta 1o a INT y luego a float, perdiendo los decimales!
+                v3Im[i] = v3Im[i] / (float) Nmeas;
+            }
+            m = new MathDatos(v3Re, v3Im);//media
+        }
+        if (Nmeas == 1) { //Sólo hay 1 solo elemento: la media es él mismo
+            m = S11list.get(0);
+        }
+        return m;
+    }
 }
 
+
 class MathDatos {
-    public float[] a1 = null;
-    public float[] a2 = null;
+    private float[] Re = null;
+    private float[] Im = null;
 
     //Constructor
-    public MathDatos(float[] a, float[] b) {
-        setReIm(a,b);
+    public MathDatos(float[] Re, float[] Im) {
+        setReIm(Re, Im);
     }
 
     //Devuelve parte real
     public float[] v1() {
-        return a1;
+        return Re;
     }
 
     //Devuelve parte imaginaria
     public float[] v2() {
-        return a2;
+        return Im;
     }
 
     //Cambiamos el valor de la parte real e imaginaria del vector de num  complejos
     public void setReIm(float[] re, float[] im) {
-        a1=re;
-        a2=im;
+        Re = re;
+        Im = im;
     }
 }
 
+//Clase con los valores de configuración para pintar las medidas en freq!
+class confFreq {
+    public double df;
+    public double[] xlimF;
+    public double[] ylimF;
+    public double fini;
+    public double fstop;
+    public int N;
+
+    public confFreq(double df, double[] xlimF, double[] ylimF, double fini, double fstop, int N) {
+        this.xlimF = xlimF;
+        this.ylimF = ylimF;
+        this.N = N;
+        this.df = df;
+        this.fini = fini;
+        this.fstop = fstop;
+    }
+
+}
 //class MediaV{
 //    private MathDatos v; //vector complejo conteniendo la media actual
 //    private double cont; //contador del numero de curvas promediadas hasta el momento
