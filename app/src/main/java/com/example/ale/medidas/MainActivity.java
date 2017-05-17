@@ -102,8 +102,8 @@ public class MainActivity extends AppCompatActivity {
         graph.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                lecturaS11(null);//debug en Modo Offline
-                //new connectTask().execute(":CALC:DATA:SDAT?");//debug en Modo Offline
+                //lecturaS11(null);//debug en Modo Offline
+                new connectTask().execute(":CALC:DATA:SDAT?");//debug en Modo Online
             }
         });
     }
@@ -125,7 +125,7 @@ public class MainActivity extends AppCompatActivity {
     public void lecturaS11(String msg) {
         //LECTURA de los datos del VNA
         //Modo Offline para Testeo: Cogemos siempre un valor de medida almacenados en fichero de conf. /data/data/com.example.ale.medidas/shared_prefs/*.xml
-        msg = PreferenceManager.getDefaultSharedPreferences(this).getString("medida", "");
+        //msg = PreferenceManager.getDefaultSharedPreferences(this).getString("medida", ""); //Modo Offline
         S11 = msg;
 
         //Recuperamos la configuración
@@ -149,10 +149,9 @@ public class MainActivity extends AppCompatActivity {
             fstop = Float.parseFloat(pref.getString("freqEnd", ""));
             dR = Float.parseFloat(pref.getString("filtro", ""));
             N = (int) Float.parseFloat(pref.getString("npoint", ""));
-            Toast.makeText(getApplicationContext(), "(Num de puntos, filtro) = (" + N + "," + dR + ")", Toast.LENGTH_SHORT).show();
+            //Toast.makeText(getApplicationContext(), "(Num de puntos, filtro) = (" + N + "," + dR + ")", Toast.LENGTH_SHORT).show();
         }
         double df = (double) (fstop - fini) / (double)(N - 1);
-        double df2 = (double) (fstop - fini) / (double)(Nfft - 1);
         double[] xlimF = new double[]{fini, fstop};
         double[] ylimF = new double[]{-35, 5};
         double dx = 1 / (df * Nfft) * c;//retardo de ida y vuelta (dividimos entre 2 la distancia!)
@@ -177,7 +176,7 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(getApplicationContext(), "CaL Incompleta! Falta: " + txt, Toast.LENGTH_SHORT).show();
             return;
         }
-        if (std3.equals("")) {
+        if (!std3.equals("")) {
             S11std3 = MathV.vna2ReIm(std3);
         }
         //String to Vectors
@@ -187,7 +186,7 @@ public class MainActivity extends AppCompatActivity {
         //Testeo
 //        Toast.makeText(getApplicationContext(), "CaL S11back N = "+ Nfft +" S11 = " + back, Toast.LENGTH_SHORT).show();
 //        Toast.makeText(getApplicationContext(), "CaL S11ref N = "+ Nfft +" S11 = " + ref, Toast.LENGTH_SHORT).show();
-//        Toast.makeText(getApplicationContext(), "CaL S11m N = "+ Nfft +" S11 = " + med, Toast.LENGTH_SHORT).show();
+//        Toast.makeText(getApplicationContext(), "CaL S11m N = "+ Nfft +" S11 = " + S11, Toast.LENGTH_SHORT).show();
 
 
         //Zero padding para la IFFT
@@ -198,10 +197,6 @@ public class MainActivity extends AppCompatActivity {
         float[] Sm_Re = Arrays.copyOf(S11m.v1(), Nfft);   //Medida
         float[] Sm_Im = Arrays.copyOf(S11m.v2(), Nfft);
 
-        //Test: funciona la librería de la FFT
-        //String test_neon = FaCollection.test_fft();
-        //Toast.makeText(getApplicationContext(), "FFT test con FaCollection: "+test_neon, Toast.LENGTH_SHORT).show();
-        //Log.e("MainActivity", "alej: FFT FaCollection: "+ test_neon);
 
         //Realizamos la IFFT
         float[] Sb_Re_t = Sb_Re;//copia de los valores en freq y tras la fft será rellenado cn los valores en el tiempo
@@ -220,28 +215,20 @@ public class MainActivity extends AppCompatActivity {
 
         //Pintamos la IFFT
         //graph.removeAllSeries();//borramos las series de los ejes
-        //mSeries3 = new LineGraphSeries<>();
-        //LineGraphSeries<DataPoint> mSeries4 = new LineGraphSeries<>();
-
         //MathV.pintarSerie(graph, Color.RED, Sb_t, dx/2, xlim, ylim);//retardo de ida y vuelta
         //MathV.pintarSerie(graph, Color.BLUE, Sr_t, dx/2, xlim, ylim);
         //MathV.pintarSerie(graph, Color.GREEN, Sm_t, dx/2, xlim, ylim);
 
         //Filtrado y CaL
         MathDatos[] Scal_t = MathV.filtrar(Sparam, dR, dx);
-//        MathV.pintarSerie(graph, Color.RED, Scal_t[0], dx, xlim, ylim);
-//        MathV.pintarSerie(graph, Color.BLUE, Scal_t[1], dx, xlim, ylim);
-//        MathV.pintarSerie(graph, Color.GREEN, Scal_t[2], dx, xlim, ylim);
-//        MathV.pintarSerie(graph, Color.BLACK, Sb_t, dx, xlim, ylim);
 
         //Realizamos "IFFT/Nfft"
-        graph.removeAllSeries();//borramos las series de los ejes
         MathDatos[] S2 = MathV.calBackRef(Scal_t);
-        MathDatos R=S2[0];
+        MathDatos R=S2[0];//S11 de la medida calibrado!
 
         //Grafica: medida filtrada
+        graph.removeAllSeries();//borramos las series de los ejes
         MathV.pintarSerie(graph, Color.GREEN, R, df, xlimF, ylimF,fini,N);
-
 
         //Pintamos la operación inversa para ver si obtenemos la curva original "FFT(IFFT)": Para que sea correcto es necesario hacer "1/Nfft*FFT(IFFT)"
         //(sólo pintamos los N primeros valores, pq los restantes hasta llegar a Nfft serán 0: zero padding!!)

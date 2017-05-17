@@ -32,7 +32,7 @@ public class OpcionesFragment extends PreferenceFragment {
         back.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
             @Override
             public boolean onPreferenceClick(Preference preference) {
-                Toast.makeText(getActivity(), "Lectura del Background", Toast.LENGTH_SHORT).show();
+                Toast.makeText(getActivity(), "Lectura del Background: Espere!", Toast.LENGTH_SHORT).show();
                 flg = 1;
                 new connectTask().execute(":CALC:DATA:SDAT?");
                 return true;
@@ -44,7 +44,7 @@ public class OpcionesFragment extends PreferenceFragment {
         ref.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
             @Override
             public boolean onPreferenceClick(Preference preference) {
-                Toast.makeText(getActivity(), "Lectura del Reference", Toast.LENGTH_SHORT).show();
+                Toast.makeText(getActivity(), "Lectura del Reference: Espere!", Toast.LENGTH_SHORT).show();
                 flg = 2;
                 new connectTask().execute(":CALC:DATA:SDAT?");
                 return true;
@@ -56,7 +56,7 @@ public class OpcionesFragment extends PreferenceFragment {
         cal3.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
             @Override
             public boolean onPreferenceClick(Preference preference) {
-                Toast.makeText(getActivity(), "Lectura del 3er Estándar", Toast.LENGTH_SHORT).show();
+                Toast.makeText(getActivity(), "Lectura del 3er Estándar: Espere!", Toast.LENGTH_SHORT).show();
                 flg = 3;
                 new connectTask().execute(":CALC:DATA:SDAT?");
                 return true;
@@ -94,7 +94,8 @@ public class OpcionesFragment extends PreferenceFragment {
             SharedPreferences.Editor editor = pref.edit();//para guardar datos en el archivo de preferencias (invocamos al editor que permite guardar datos)
             editor.putString(prf_key, msg);//guardamos el valor del estandar leido
             editor.commit();
-            Toast.makeText(getActivity(), "Preferences: Guardado Estandar " + flg + " =  " + pref.getString(prf_key, "") + ",", Toast.LENGTH_SHORT).show();
+            //Toast.makeText(getActivity(), "Preferences: Guardado Estandar " + flg + " =  " + pref.getString(prf_key, "") + ",", Toast.LENGTH_SHORT).show();
+            Toast.makeText(getActivity(), "Ok", Toast.LENGTH_SHORT).show();
         }
     }
 
