@@ -462,16 +462,30 @@ class MathDatos {
     public float[] a1 = null;
     public float[] a2 = null;
 
+    //Constructor
     public MathDatos(float[] a, float[] b) {
-        a1 = a;
-        a2 = b;
+        setReIm(a,b);
     }
 
+    //Devuelve parte real
     public float[] v1() {
         return a1;
     }
 
+    //Devuelve parte imaginaria
     public float[] v2() {
         return a2;
     }
+
+    //Cambiamos el valor de la parte real e imaginaria del vector de num  complejos
+    public void setReIm(float[] re, float[] im) {
+        a1=re;
+        a2=im;
+    }
 }
+
+//class MediaV{
+//    private MathDatos v; //vector complejo conteniendo la media actual
+//    private double cont; //contador del numero de curvas promediadas hasta el momento
+//
+//}

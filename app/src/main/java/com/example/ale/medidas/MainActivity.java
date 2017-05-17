@@ -31,12 +31,13 @@ public class MainActivity extends AppCompatActivity {
     private LineGraphSeries<DataPoint> mSeries2;
     private LineGraphSeries<DataPoint> mSeries3;
     private GraphView graph;
-    private static double c = 0.3;
+    private static double c = 0.3;//veloc luz lista para dividir por GHz y obtener metros: "distancia =c/fGHz" (m)
     private String S11;
     private MathDatos S11m = null;
     private MathDatos S11back = null;
     private MathDatos S11ref = null;
     private MathDatos S11std3 = null;
+    private MathDatos[] S11meas = null; //contiene la lista de medidas hasta ahora
 
 //    @Override
 //    protected void onResume(){
@@ -151,7 +152,7 @@ public class MainActivity extends AppCompatActivity {
             N = (int) Float.parseFloat(pref.getString("npoint", ""));
             //Toast.makeText(getApplicationContext(), "(Num de puntos, filtro) = (" + N + "," + dR + ")", Toast.LENGTH_SHORT).show();
         }
-        double df = (double) (fstop - fini) / (double)(N - 1);
+        double df = (double) (fstop - fini) / (double) (N - 1);
         double[] xlimF = new double[]{fini, fstop};
         double[] ylimF = new double[]{-35, 5};
         double dx = 1 / (df * Nfft) * c;//retardo de ida y vuelta (dividimos entre 2 la distancia!)
@@ -224,11 +225,11 @@ public class MainActivity extends AppCompatActivity {
 
         //Realizamos "IFFT/Nfft"
         MathDatos[] S2 = MathV.calBackRef(Scal_t);
-        MathDatos R=S2[0];//S11 de la medida calibrado!
+        MathDatos R = S2[0];//S11 de la medida calibrado!
 
         //Grafica: medida filtrada
         graph.removeAllSeries();//borramos las series de los ejes
-        MathV.pintarSerie(graph, Color.GREEN, R, df, xlimF, ylimF,fini,N);
+        MathV.pintarSerie(graph, Color.GREEN, R, df, xlimF, ylimF, fini, N);
 
         //Pintamos la operación inversa para ver si obtenemos la curva original "FFT(IFFT)": Para que sea correcto es necesario hacer "1/Nfft*FFT(IFFT)"
         //(sólo pintamos los N primeros valores, pq los restantes hasta llegar a Nfft serán 0: zero padding!!)
