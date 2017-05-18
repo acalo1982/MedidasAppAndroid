@@ -41,6 +41,7 @@ public class MainActivity extends AppCompatActivity {
     private MathDatos Rcoef = null;//coef. S11 calibrado (con filtrado mediante FFT)
     private ArrayList<MathDatos> Rlist = new ArrayList<>();//array con las medidas realizadas hasta ahora
     private MathDatos Rmedia;
+    private MathDatosD Rmedia2;
     private confFreq confF;//param para pintar las graf en freq
 //    @Override
 //    protected void onResume(){
@@ -107,6 +108,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public boolean onLongClick(View view) {
                 borrarRlist();
+                Toast.makeText(getApplicationContext(), "Borrar Medida!", Toast.LENGTH_SHORT).show();
                 return true;
             }
         });
@@ -126,24 +128,32 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    //Actualiza el titulo del item "Nuevo" con el num de medidas actuales:a modo de contador
+    public void setContMedItem(){
+        invalidateOptionsMenu();//esto hace una llamada a la función "onPrepareOptionsMenu()" q tiene acceso a los items de la actionbar
+
+    }
+
     //Borramos la última medida almacenada
     public void borrarRlist() {
         int Nmeas = Rlist.size();
         if (Nmeas > 1) {
-            Rlist.remove(Nmeas - 1);//eliminamos el último elemento
-            Rmedia = MathV.media(Rlist);//actualizamos la media actual (tras el borrado)
-            Rcoef=Rlist.get(Rlist.size()-1);//actualizamos la última medida actual
-
+            Rmedia2 = MathV.mediaDel(Rcoef,Rmedia2,Rlist.size());//actualizamos la media actual (tras el borrado)
+            Rlist.remove(Nmeas - 1);//eliminamos el último elemento (1er elemento, indice i=0!)
+            Rcoef=Rlist.get(Rlist.size()-1);//actualizamos la última medida como la actual
+            Log.e("borrarList", "alej: Nmeas = "+Rlist.size());
             //Grafica: medida filtrada
             graph.removeAllSeries();//borramos las series de los ejes
             MathV.pintarSerie(graph, Color.BLUE, Rcoef, confF.df, confF.xlimF, confF.ylimF, confF.fini, confF.N);
-            MathV.pintarSerie(graph, Color.BLACK, Rmedia, confF.df, confF.xlimF, confF.ylimF, confF.fini, confF.N);
+            MathV.pintarSerie(graph, Color.BLACK, Rmedia2, confF.df, confF.xlimF, confF.ylimF, confF.fini, confF.N);
+            setContMedItem();//set contador de medidas en la actionbar
         }
         if (Nmeas==1){
             Rlist.remove(Nmeas - 1);//eliminamos el único elemento
             Rcoef=null;
             Rmedia=null;
             graph.removeAllSeries();//borramos los ejes
+            setContMedItem();//set contador de medidas en la actionbar
         }
     }
 
@@ -252,18 +262,21 @@ public class MainActivity extends AppCompatActivity {
         MathDatos[] Scal_t = MathV.filtrar(Sparam, dR, dx);
 
         //Realizamos "IFFT/Nfft"
-        MathDatos[] S2 = MathV.calBackRef(Scal_t);
+        MathDatos[] S2 = MathV.calBackRef(Scal_t, N);
         Rcoef = S2[0];//S11 de la medida calibrado!
+
 
         //Añadimos la nueva medida a la lista de medidas
         Rlist.add(Rcoef);
-        Rmedia = MathV.media(Rlist);//última media
-
+        Log.e("lecturaS11", "alej: Nmeas = "+Rlist.size());
+        MathV.pintarSerie(graph, Color.BLUE, Rcoef, df, xlimF, ylimF, fini, N);
+        Rmedia2 = MathV.mediaAdd(Rcoef, Rmedia2, Rlist.size());//última media
+        setContMedItem();//actualizamos el num de medidas en el menu
 
         //Grafica: medida filtrada
         graph.removeAllSeries();//borramos las series de los ejes
         MathV.pintarSerie(graph, Color.BLUE, Rcoef, df, xlimF, ylimF, fini, N);
-        MathV.pintarSerie(graph, Color.BLACK, Rmedia, df, xlimF, ylimF, fini, N);
+        MathV.pintarSerie(graph, Color.BLACK, Rmedia2, df, xlimF, ylimF, fini, N);
 
         //Pintamos la operación inversa para ver si obtenemos la curva original "FFT(IFFT)": Para que sea correcto es necesario hacer "1/Nfft*FFT(IFFT)"
         //(sólo pintamos los N primeros valores, pq los restantes hasta llegar a Nfft serán 0: zero padding!!)
@@ -271,9 +284,21 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    //Actualizamos el texto del view de la actionbar "Nuevo"
+    @Override
+    public boolean onPrepareOptionsMenu(Menu menu) {
+        MenuItem item=menu.findItem(R.id.action_nuevo);
+        int Nmed=Rlist.size();
+        String txt="M: "+Nmed;
+        item.setTitle(txt);
+        //Log.i("ActionBar.Nuevo", "alej: Nmed = "+Nmed);
+        return true;
+    }
+
     //Asociamos el menu a la ActionBar por defecto de la App
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
+
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
         return true;
@@ -284,7 +309,6 @@ public class MainActivity extends AppCompatActivity {
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.action_nuevo:
-                Log.i("ActionBar", "Nuevo!");
                 return true;
             case R.id.action_buscar: //Pulsado sobre el icono de configuracion
                 Log.i("ActionBar", "Settings!");
@@ -292,7 +316,7 @@ public class MainActivity extends AppCompatActivity {
                 Intent intent = new Intent(this, PantallaConf.class); // Abrimos Activity secundaria que hace uso del fragment XML como su propia UI
                 startActivity(intent);
                 return true;
-            case R.id.action_settings:
+            case R.id.action_settings: //Icono que muestra si estamos online (conectados al VNA)
                 Log.i("ActionBar", "Settings!");
                 if (conectado == 0) {
                     conectado = 1;
@@ -312,6 +336,7 @@ public class MainActivity extends AppCompatActivity {
                 return super.onOptionsItemSelected(item);
         }
     }
+
 
     //Cliente v1: Se abre/cierra un socket en el envío de cada comando (si el comando es de request, se espera a la respuesta del VNA)
     public class connectTask extends AsyncTask<String, String, TCPClient> {

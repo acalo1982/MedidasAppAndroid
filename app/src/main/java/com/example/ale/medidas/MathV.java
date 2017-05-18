@@ -11,6 +11,7 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 
 import fastandroid.neoncore.collection.FaCollection;
 
@@ -131,8 +132,8 @@ public final class MathV {
             v3Re = new float[N];
             v3Im = new float[N];
             for (int i = 0; i < N; i += 1) {
-                v3Re[i] = (float) (w1 * v1Re[i] + w2 * v2Re[i]);
-                v3Im[i] = (float) (w1 * v1Im[i] + w2 * v2Im[i]);
+                v3Re[i] = (float) (w1 * (double) v1Re[i] + w2 * (double) v2Re[i]);
+                v3Im[i] = (float) (w1 * (double) v1Im[i] + w2 * (double) v2Im[i]);
                 //Log.e("sum_wV","alej: [idx, Rre, Rim] = ["+i+", "+v3Re[i]+", "+v3Im[i]+"]");
             }
             v3 = new MathDatos(v3Re, v3Im);
@@ -166,7 +167,7 @@ public final class MathV {
                 Ft = F1 - F2;//fase de la division de 2 num complejos
                 v3Re[i] = (float) (Mt * Math.cos(Ft));
                 v3Im[i] = (float) (Mt * Math.sin(Ft));
-                Log.e("div_wV", "alej: [idx, Rre, Rim] = [" + i + ", " + v3Re[i] + ", " + v3Im[i] + "]");
+                //Log.e("div_wV", "alej: [idx, Rre, Rim] = [" + i + ", " + v3Re[i] + ", " + v3Im[i] + "]");
             }
             C = new MathDatos(v3Re, v3Im);
         }
@@ -233,6 +234,22 @@ public final class MathV {
         return v3;
     }
 
+    //Modulo de la combinación de 2 vectores
+    public static double[] absdB_wV(MathDatos a1) {
+        double[] v3 = null;
+        float[] v1Re = a1.v1();
+        float[] v1Im = a1.v2();
+        double M1, M2;
+        if (v1Re.length>1) {
+            int N = v1Re.length;
+            v3 = new double[N];
+            for (int i = 0; i < N; i += 1) {
+                M1 = Math.sqrt(Math.pow(v1Re[i], 2) + Math.pow(v1Im[i], 2));//modulo1
+                v3[i] = Math.abs(M1);//diferencia entre los modulos para cada componente del vector
+            }
+        }
+        return v3;
+    }
     //Modulo de 2 vectores en unidades naturales
     public static double[] absV(double[] v1, double[] v2) {
         double[] v3 = null;
@@ -340,7 +357,7 @@ public final class MathV {
     }
 
     //Filtrado con una ventana Hamming de la CaL y la Med (Scal_t: valores en el dominio del espacio, no freq!)
-    public static MathDatos[] calBackRef(MathDatos[] Scal_t) {
+    public static MathDatos[] calBackRef(MathDatos[] Scal_t, int Norig) {
         MathDatos[] R = new MathDatos[3];
 
         //Matriz de CaL filtrada
@@ -370,6 +387,7 @@ public final class MathV {
         MathDatos s1 = sum_wV(Sm2, Sb2, 1, -1);
         MathDatos s2 = sum_wV(Sr2, Sb2, 1, -1);
         MathDatos r = div_wV(s1, s2, -1);
+        r = new MathDatos(Arrays.copyOf(r.v1(), Norig), Arrays.copyOf(r.v2(), Norig));//nos quedamos solo con los N (201) primeros puntos, quitando el zero-padding
         R[0] = r;
         //R[0] = s1;
         //R[1] = s2;
@@ -459,7 +477,34 @@ public final class MathV {
         graph.getViewport().setMaxX(xlim[1]);
     }
 
+    //Metodo para pintar una gráfica en unos ejes, dando los ejes y creando un objeto curva en cada llamada
+    public static void pintarSerie(GraphView graph, int cl, MathDatosD Sm, double dx, double[] xlim, double[] ylim, double fini, int Nmax) {
+        LineGraphSeries<DataPoint> mSerie = new LineGraphSeries<>();
+        graph.addSeries(mSerie);//añadimos la serie a los ejes
+        mSerie.setColor(cl);
+        double[] Sm_Re_t = Sm.v1();
+        double[] Sm_Im_t = Sm.v2();
+        //int Nfft = Sm_Re_t.length
+        int Nfft = Nmax;
+        DataPoint[] points3 = new DataPoint[Nfft];
+        //Pintamos la IFFT
+        for (int i = 0; i < Nfft; i += 1) {
+            double M = Math.sqrt(Math.pow(Sm_Re_t[i], 2) + Math.pow(Sm_Im_t[i], 2));//modulo
+            M = 20 * Math.log10(M);//modulo en dB
+            double x = fini + i * dx;//retardo de ida y vuelta
+            points3[i] = new DataPoint(x, M);
+            mSerie.appendData(points3[i], true, Nfft);
+        }
+        graph.getViewport().setYAxisBoundsManual(true);
+        graph.getViewport().setMinY(ylim[0]);
+        graph.getViewport().setMaxY(ylim[1]);
+        // set manual X bounds
+        graph.getViewport().setXAxisBoundsManual(true);
+        graph.getViewport().setMinX(xlim[0]);
+        graph.getViewport().setMaxX(xlim[1]);
+    }
 
+    //Calcula la media de las partes Re y Im del array conteniendo las medidas
     public static MathDatos media(ArrayList<MathDatos> S11list) {
         MathDatos m = null;
         int Nmeas = S11list.size();//num de medidas en el array
@@ -468,20 +513,58 @@ public final class MathV {
 
         if (Nmeas > 1) { //Si hay elementos en la lista, realizamos la media
             Nfreq = S11list.get(0).v1().length;//num de puntos de freq
-            v3Re = new float[Nfreq];
-            v3Im = new float[Nfreq];
-            for (int i = 0; i < Nfreq; i += 1) {
-                for (int j = 0; j < Nmeas; j += 1) {
-                    v3Re[i] = v3Re[i] + S11list.get(j).v1()[i]; //suma, para cada freq, de las medidas realizadas (parte Real e Im)
-                    v3Im[i] = v3Re[i] + S11list.get(j).v2()[i];
-                }
-                v3Re[i] = v3Re[i] / (float) Nmeas;//convertimos antes "Nmeas" a float para q la división no se convierta 1o a INT y luego a float, perdiendo los decimales!
-                v3Im[i] = v3Im[i] / (float) Nmeas;
+            //Log.e("MathV.Media", "alej: [Nmeas, Nfreq] = [" + Nmeas + ", " + Nfreq + "]");
+            double k = (1 / (double) Nmeas);
+            MathDatos aux = new MathDatos(new float[Nfreq], new float[Nfreq]);//vector 0;
+            for (int j = 0; j < Nmeas; j += 1) {
+                aux = sum_wV(aux, S11list.get(j), 1, k);
             }
-            m = new MathDatos(v3Re, v3Im);//media
+            m = aux;
         }
         if (Nmeas == 1) { //Sólo hay 1 solo elemento: la media es él mismo
             m = S11list.get(0);
+        }
+        return m;
+    }
+
+    //Calcula la media de una nueva medida (Add)de las partes Re y Im del array: a partir de la media anterior
+    public static MathDatosD mediaAdd(MathDatos Rmed, MathDatosD Rmean, int Nmeas) {
+        MathDatosD m = null;
+        double Nmed = (double) Nmeas;
+        if (Nmeas > 1) { //Si hay elementos en la lista, realizamos la media
+            int Nfreq = Rmed.v1().length;//num de puntos de freq
+            double M;
+            double[] vRe = new double[Nfreq];
+            double[] vIm = new double[Nfreq];
+            for (int i = 0; i < Nfreq; i += 1) {
+                M = Math.sqrt(Math.pow(Rmed.v1()[i], 2) + Math.pow(Rmed.v2()[i], 2));//medias de los módulos en unidades naturales
+                vRe[i] = (Rmean.v1()[i] * (Nmed - 1) + M) / Nmed;
+            }
+            m = new MathDatosD(vRe, vIm);
+        }
+        if (Nmeas == 1) { //Sólo hay 1 solo elemento: la media es él mismo
+            m = new MathDatosD(absdB_wV(Rmed),new double[Rmed.v1().length]);//modulo de la 1a medida (parte Im es cero y la Re = modulo)
+        }
+        return m;
+    }
+
+    //Calcula la media anterior a la medida actual (Del)de las partes Re y Im del array: a partir de la media anterior
+    public static MathDatosD mediaDel(MathDatos Rmed, MathDatosD Rmean, int Nmeas) {
+        MathDatosD m = null;
+        double Nmed = (double) Nmeas;
+        if (Nmeas > 1) { //Si hay elementos en la lista, realizamos la media
+            int Nfreq = Rmed.v1().length;//num de puntos de freq
+            double M;
+            double[] vRe = new double[Nfreq];
+            double[] vIm = new double[Nfreq];
+            for (int i = 0; i < Nfreq; i += 1) {
+                M = Math.sqrt(Math.pow(Rmed.v1()[i], 2) + Math.pow(Rmed.v2()[i], 2));//medias de los módulos en unidades naturales
+                vRe[i] = (Rmean.v1()[i] * Nmed - M) / (Nmed-1);
+            }
+            m = new MathDatosD(vRe, vIm);
+        }
+        if (Nmeas == 1) { //Sólo hay 1 solo elemento: la media es él mismo
+            m = new MathDatosD(absdB_wV(Rmed),new double[Rmed.v1().length]);//modulo de la 1a medida (parte Im es cero y la Re = modulo)
         }
         return m;
     }
@@ -509,6 +592,44 @@ class MathDatos {
 
     //Cambiamos el valor de la parte real e imaginaria del vector de num  complejos
     public void setReIm(float[] re, float[] im) {
+        Re = re;
+        Im = im;
+    }
+}
+
+class MathDatosD {
+    private double[] Re = null;
+    private double[] Im = null;
+
+    //Constructor
+    public MathDatosD(double[] Re, double[] Im) {
+        setReIm(Re, Im);
+    }
+
+    //Constructor: se convierte a double el float
+    public MathDatosD(MathDatos C) {
+        int N = C.v1().length;
+        double[] re = new double[N];
+        double[] im = new double[N];
+        for (int i = 0; i < N; i += 1) {
+            re[i] = (double) C.v1()[i];
+            im[i] = (double) C.v2()[i];
+        }
+        setReIm(re, im);
+    }
+
+    //Devuelve parte real
+    public double[] v1() {
+        return Re;
+    }
+
+    //Devuelve parte imaginaria
+    public double[] v2() {
+        return Im;
+    }
+
+    //Cambiamos el valor de la parte real e imaginaria del vector de num  complejos
+    public void setReIm(double[] re, double[] im) {
         Re = re;
         Im = im;
     }
