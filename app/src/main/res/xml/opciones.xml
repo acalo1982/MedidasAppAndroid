@@ -1,6 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <PreferenceCategory android:title="Información del Proyecto">
+    <EditTextPreference
+        android:defaultValue="MicromagTest"
+        android:key="nameProyecto"
+        android:selectAllOnFocus="true"
+        android:singleLine="true"
+        android:title="Nombre del Proyecto" />
+    <EditTextPreference
+        android:defaultValue="7"
+        android:key="Narea"
+        android:selectAllOnFocus="true"
+        android:singleLine="true"
+        android:title="Num. Áreas de Medida" />
+    </PreferenceCategory>
+
     <PreferenceCategory android:title="Calibración">
         <Preference android:title="Background" android:key="background"/>
         <Preference android:title="Reference" android:key="reference"/>

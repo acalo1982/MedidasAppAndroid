@@ -4,6 +4,7 @@ import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.AsyncTask;
 import android.preference.PreferenceManager;
+import android.support.v4.view.MenuItemCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -17,6 +18,9 @@ import com.jjoe64.graphview.series.*;
 import android.content.pm.ActivityInfo;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.Spinner;
 import android.widget.Toast;
 
 import java.util.ArrayList;
@@ -43,6 +47,7 @@ public class MainActivity extends AppCompatActivity {
     private MathDatos Rmedia;
     private MathDatosD Rmedia2;
     private confFreq confF;//param para pintar las graf en freq
+    private String[] NumAreas;
 //    @Override
 //    protected void onResume(){
 //        super.onResume();  // Always call the superclass method first
@@ -79,6 +84,29 @@ public class MainActivity extends AppCompatActivity {
 //        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 //        //getSupportActionBar().setLogo(R.drawable.dani_icon);
         //getSupportActionBar().setDisplayUseLogoEnabled(true);
+
+        //Inicializamos la lista de areas disponibles a mostrar en el desplegable de la Actionbar
+//        String[] datos = new String[]{"A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10"};
+//        ArrayAdapter<String> adaptador = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, datos);//Adaptador: contiene los datos a mostrar
+//        Spinner cmbOpciones = (Spinner)findViewById(R.id.CmbToolbar);
+//        adaptador.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+//        cmbOpciones.setAdapter(adaptador);
+//        //ArrayAdapter<String> adapter = new ArrayAdapter<String>(getSupportActionBar().getThemedContext(),android.R.layout.appbar_filter_title,datos);
+//        //adaptador.setDropDownViewResource(R.layout.appbar_filter_list);
+//
+//        cmbOpciones.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+//            @Override
+//            public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
+//                //... Acciones al seleccionar una opción de la lista
+//                Log.i("Toolbar 3", "Seleccionada opción " + i);
+//            }
+//
+//            @Override
+//            public void onNothingSelected(AdapterView<?> adapterView) {
+//                //... Acciones al no existir ningún elemento seleccionado
+//            }
+//        });
+
 
         //CREAMOS UNOS EJES Y UNA CURVA DE EJEMPLO
         graph = (GraphView) findViewById(R.id.graph);
@@ -129,7 +157,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     //Actualiza el titulo del item "Nuevo" con el num de medidas actuales:a modo de contador
-    public void setContMedItem(){
+    public void setContMedItem() {
         invalidateOptionsMenu();//esto hace una llamada a la función "onPrepareOptionsMenu()" q tiene acceso a los items de la actionbar
 
     }
@@ -138,20 +166,20 @@ public class MainActivity extends AppCompatActivity {
     public void borrarRlist() {
         int Nmeas = Rlist.size();
         if (Nmeas > 1) {
-            Rmedia2 = MathV.mediaDel(Rcoef,Rmedia2,Rlist.size());//actualizamos la media actual (tras el borrado)
+            Rmedia2 = MathV.mediaDel(Rcoef, Rmedia2, Rlist.size());//actualizamos la media actual (tras el borrado)
             Rlist.remove(Nmeas - 1);//eliminamos el último elemento (1er elemento, indice i=0!)
-            Rcoef=Rlist.get(Rlist.size()-1);//actualizamos la última medida como la actual
-            Log.e("borrarList", "alej: Nmeas = "+Rlist.size());
+            Rcoef = Rlist.get(Rlist.size() - 1);//actualizamos la última medida como la actual
+            Log.e("borrarList", "alej: Nmeas = " + Rlist.size());
             //Grafica: medida filtrada
             graph.removeAllSeries();//borramos las series de los ejes
             MathV.pintarSerie(graph, Color.BLUE, Rcoef, confF.df, confF.xlimF, confF.ylimF, confF.fini, confF.N);
             MathV.pintarSerie(graph, Color.BLACK, Rmedia2, confF.df, confF.xlimF, confF.ylimF, confF.fini, confF.N);
             setContMedItem();//set contador de medidas en la actionbar
         }
-        if (Nmeas==1){
+        if (Nmeas == 1) {
             Rlist.remove(Nmeas - 1);//eliminamos el único elemento
-            Rcoef=null;
-            Rmedia=null;
+            Rcoef = null;
+            Rmedia = null;
             graph.removeAllSeries();//borramos los ejes
             setContMedItem();//set contador de medidas en la actionbar
         }
@@ -268,7 +296,7 @@ public class MainActivity extends AppCompatActivity {
 
         //Añadimos la nueva medida a la lista de medidas
         Rlist.add(Rcoef);
-        Log.e("lecturaS11", "alej: Nmeas = "+Rlist.size());
+        Log.e("lecturaS11", "alej: Nmeas = " + Rlist.size());
         MathV.pintarSerie(graph, Color.BLUE, Rcoef, df, xlimF, ylimF, fini, N);
         Rmedia2 = MathV.mediaAdd(Rcoef, Rmedia2, Rlist.size());//última media
         setContMedItem();//actualizamos el num de medidas en el menu
@@ -284,12 +312,21 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    //Actualizamos el texto del view de la actionbar "Nuevo"
+    //Sobreescribir el comportamiento pulsar el botón "hacia atrás" en la actividad principal: evitar que se cierre la app y perder los datos no guardados!
+    //Además, parece que se puede capturar el evento "right click" de un ratón conectado por micro-usb/bluetooth
+    @Override
+    public void onBackPressed() {
+        //Log.e("MainActivity","alej: Botón dcho ratón o Botón Atrás");
+        Toast.makeText(getApplicationContext(), "Pulsado Botón dcho ratón o Botón Atrás", Toast.LENGTH_SHORT).show();
+        // your code.
+    }
+
+    //Actualiza la actionbar tras una llamada a "invalidateOptionsMenu()" (aprovecharemos para cambiar el título del item de la actionbar q usaremos para mostrar el num. medidas actual
     @Override
     public boolean onPrepareOptionsMenu(Menu menu) {
-        MenuItem item=menu.findItem(R.id.action_nuevo);
-        int Nmed=Rlist.size();
-        String txt="M: "+Nmed;
+        MenuItem item = menu.findItem(R.id.action_nuevo);
+        int Nmed = Rlist.size();
+        String txt = "M: " + Nmed;
         item.setTitle(txt);
         //Log.i("ActionBar.Nuevo", "alej: Nmed = "+Nmed);
         return true;
@@ -301,6 +338,29 @@ public class MainActivity extends AppCompatActivity {
 
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
+
+        //Spinner: Asociamos el Adaptador con el contenido
+        MenuItem item = menu.findItem(R.id.CmbToolbar);
+        Spinner spinner = (Spinner) MenuItemCompat.getActionView(item);
+        SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
+        int Nareas;
+        if (pref.getString("Narea", "").equals("")){
+            Nareas=7;
+        }else{
+            Nareas=Integer.parseInt(pref.getString("Narea", ""));
+        }
+
+
+        int[] datos2= new int[Nareas];
+        Log.e("OnCreateOptionMenu","alej: [Filtro, Narea, datos2] = "+Nareas+", "+pref.getString("filtro", "")+", "+datos2[0]+"]");
+//        for (int i=0;i<Nareas;i+=1){
+//            datos[0]=""+i;
+//        }
+        String[] datos = new String[]{"A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10"};
+        ArrayAdapter<String> adaptador = new ArrayAdapter<>(getSupportActionBar().getThemedContext(), android.R.layout.simple_spinner_item, android.R.id.text1,datos);//Adaptador: contiene los datos a mostrar
+        adaptador.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner.setAdapter(adaptador);
+
         return true;
     }
 
