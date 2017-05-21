@@ -142,6 +142,11 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();  // Always call the superclass method first
+        invalidateOptionsMenu();//esto hace una llamada a la función "onPrepareOptionsMenu()" q tiene acceso a los items de la actionbar
+    }
 
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
@@ -321,14 +326,48 @@ public class MainActivity extends AppCompatActivity {
         // your code.
     }
 
+    public void actulizaSpinnerArea(Menu menu) {
+        //Spinner: Asociamos el Adaptador con el contenido
+        MenuItem item = menu.findItem(R.id.cmbToolbar);
+        Spinner spinner = (Spinner) MenuItemCompat.getActionView(item);
+        SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
+        //Leemos el num de areas que haya en las preferencias (por defecto, serán 10)
+        int Nareas;
+        String Na = pref.getString("Narea", "");
+        if (Na.equals("")) {
+            Nareas = 10;
+        } else {
+            try {
+                Nareas = Integer.parseInt(Na);
+                NumAreas = new String[Nareas];
+                for (int i = 0; i < Nareas; i += 1) {
+                    NumAreas[i] = "A" + (i + 1);
+                }
+            } catch (NumberFormatException e) {
+                NumAreas = Na.split(",");//El string contiene el nombre de las areas, en vez del numero de areas
+            }
+        }
+
+
+        //Asociamos Spinner con su adaptador
+        ArrayAdapter<String> adaptador = new ArrayAdapter<>(getSupportActionBar().getThemedContext(), android.R.layout.simple_spinner_item, android.R.id.text1, NumAreas);//Adaptador: contiene los datos a mostrar
+        adaptador.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner.setAdapter(adaptador);
+    }
+
     //Actualiza la actionbar tras una llamada a "invalidateOptionsMenu()" (aprovecharemos para cambiar el título del item de la actionbar q usaremos para mostrar el num. medidas actual
     @Override
     public boolean onPrepareOptionsMenu(Menu menu) {
+        //Actualizamos el num de medidas realizadas
         MenuItem item = menu.findItem(R.id.action_nuevo);
         int Nmed = Rlist.size();
         String txt = "M: " + Nmed;
         item.setTitle(txt);
         //Log.i("ActionBar.Nuevo", "alej: Nmed = "+Nmed);
+
+        //Actualizamos el num de areas a medir
+        actulizaSpinnerArea(menu);
+
         return true;
     }
 
@@ -339,27 +378,10 @@ public class MainActivity extends AppCompatActivity {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
 
-        //Spinner: Asociamos el Adaptador con el contenido
-        MenuItem item = menu.findItem(R.id.CmbToolbar);
-        Spinner spinner = (Spinner) MenuItemCompat.getActionView(item);
-        SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
-        int Nareas;
-        if (pref.getString("Narea", "").equals("")){
-            Nareas=7;
-        }else{
-            Nareas=Integer.parseInt(pref.getString("Narea", ""));
-        }
+        //Actualizamos el num de areas a medir
+        actulizaSpinnerArea(menu);
 
-
-        int[] datos2= new int[Nareas];
-        Log.e("OnCreateOptionMenu","alej: [Filtro, Narea, datos2] = "+Nareas+", "+pref.getString("filtro", "")+", "+datos2[0]+"]");
-//        for (int i=0;i<Nareas;i+=1){
-//            datos[0]=""+i;
-//        }
-        String[] datos = new String[]{"A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10"};
-        ArrayAdapter<String> adaptador = new ArrayAdapter<>(getSupportActionBar().getThemedContext(), android.R.layout.simple_spinner_item, android.R.id.text1,datos);//Adaptador: contiene los datos a mostrar
-        adaptador.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinner.setAdapter(adaptador);
+        //Creamos la clase que manejará el evento de seleccionar una area
 
         return true;
     }

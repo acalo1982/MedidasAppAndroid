@@ -4,7 +4,7 @@
     tools:context=".MainActivity">
 
     <item
-        android:id="@+id/CmbToolbar"
+        android:id="@+id/cmbToolbar"
         android:title="Área"
         app:actionViewClass="android.widget.Spinner"
         app:showAsAction="always" />

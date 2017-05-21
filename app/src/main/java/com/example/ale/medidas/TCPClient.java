@@ -5,6 +5,8 @@ package com.example.ale.medidas;
  */
 
 import android.util.Log;
+import android.widget.Toast;
+
 import java.io.*;
 import java.net.InetAddress;
 import java.net.Socket;
@@ -98,7 +100,7 @@ public class TCPClient {
 
         } catch (Exception e) {
             Log.e("TCP", "C: Error", e);
-
+            //Toast.makeText(getActivity(), "Lectura del Reference: Espere!", Toast.LENGTH_SHORT).show();
         }
 
     }
