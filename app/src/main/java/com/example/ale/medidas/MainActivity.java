@@ -1,5 +1,6 @@
 package com.example.ale.medidas;
 
+import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.AsyncTask;
@@ -44,10 +45,15 @@ public class MainActivity extends AppCompatActivity {
     private MathDatos S11std3 = null;
     private MathDatos Rcoef = null;//coef. S11 calibrado (con filtrado mediante FFT)
     private ArrayList<MathDatos> Rlist = new ArrayList<>();//array con las medidas realizadas hasta ahora
-    private MathDatos Rmedia;
-    private MathDatosD Rmedia2;
+    //private ArrayList<String> Rlist_str=new ArrayList<>();//contiene el string literal devuelto por el analizador
+    private MathDatos Rmedia;//valores complejos de la media, con presición de float (pq había un problema al hacer la media de las partes Re e Im, pero parece que haciendo la media de los módulos se corrige: sería pq la fase contenía errores¿?)
+    private MathDatosD Rmedia2 = null;//guarda valores complejos con precisión de double en vez de float (sólo para calcular la media del módulo)
     private confFreq confF;//param para pintar las graf en freq
-    private String[] NumAreas;
+    private String[] NumAreas;//contiene la lista de las áreas a medir
+    private SharedPreferences pref;//permite leer el fichero de conf por defecto
+    private int NumAreaSelec = -1;//area actual de medida (por defecto, aparecemos en el area 0)
+    //private int Nmed_prev = 0;//num de medidas ya realizadas en el área actual (se actualiza cuando se guarde el área por 1a vez!)
+
 //    @Override
 //    protected void onResume(){
 //        super.onResume();  // Always call the superclass method first
@@ -140,8 +146,52 @@ public class MainActivity extends AppCompatActivity {
                 return true;
             }
         });
+
+        //CONF PARAMETROS: nos aseguramos que la conf tiene al menos los valores por defecto
+        pref = PreferenceManager.getDefaultSharedPreferences(this);
+        SharedPreferences.Editor editor = pref.edit();
+        if (pref.getString("freq1", "").equals("")) {
+            editor.putString("freq1", "2");
+            editor.commit();
+        }
+        if (pref.getString("freqEnd", "").equals("")) {
+            editor.putString("freqEnd", "18");
+            editor.commit();
+        }
+        if (pref.getString("filtro", "").equals("")) {
+            editor.putString("filtro", "0.18");
+            editor.commit();
+        }
+        if (pref.getString("npoint", "").equals("")) {
+            editor.putString("npoint", "201");
+            editor.commit();
+        }
+        if (pref.getString("Narea", "").equals("")) {
+            editor.putString("Narea", "10");
+            editor.commit();
+        }
+        if (pref.getString("nameProyecto", "").equals("")) {
+            editor.putString("nameProyecto", "MicromagTest");
+            editor.commit();
+        }
+        if (pref.getString("ip", "").equals("")) {
+            editor.putString("ip", "10.1.18.121");
+            editor.commit();
+        }
+        if (pref.getString("puerto", "").equals("")) {
+            editor.putString("puerto", "5025");
+            editor.commit();
+        }
+        double f1 = Double.parseDouble(pref.getString("freq1", "2"));
+        double f2 = Double.parseDouble(pref.getString("freqEnd", "18"));
+        double Npoint = Double.parseDouble(pref.getString("npoint", "201"));
+        double df = (f2 - f1) / Npoint;
+        double[] xlimF = new double[]{f1, f2};
+        double[] ylimF = new double[]{-35, 5};
+        confF = new confFreq(df, xlimF, ylimF, f1, f2,(int) Npoint);//guardamos la conf de medida por defecto
     }
 
+    //Este método es llamado cuando damos al botón HW atrás, desde la actividad de configuración (objetivo: actualizar el spinner con las áreas disponibles de la Actionbar!)
     @Override
     protected void onResume() {
         super.onResume();  // Always call the superclass method first
@@ -321,9 +371,39 @@ public class MainActivity extends AppCompatActivity {
     //Además, parece que se puede capturar el evento "right click" de un ratón conectado por micro-usb/bluetooth
     @Override
     public void onBackPressed() {
-        //Log.e("MainActivity","alej: Botón dcho ratón o Botón Atrás");
-        Toast.makeText(getApplicationContext(), "Pulsado Botón dcho ratón o Botón Atrás", Toast.LENGTH_SHORT).show();
-        // your code.
+
+        // Guardaremos la medidas del area seleccionada en un archivo XML de nombre: "proyecto.Area.XX.xml"
+        int Nmed = Rlist.size();
+        String Nmed_update = "1";
+        if (Nmed > 0) { //guardamos archivo: lo creamos o actualizamos uno existente
+            //Nombre archivo XML
+            String nmfile = pref.getString("nameProyecto", "") + ".Area." + NumAreas[NumAreaSelec];
+            SharedPreferences prefArea = getSharedPreferences(nmfile, Context.MODE_PRIVATE);
+            String Nmedidas = prefArea.getString("Nmedidas", "");//num de medidas en el archivo
+
+            //Escritura de las medidas,  media y otros campos de control
+            SharedPreferences.Editor editor = prefArea.edit();
+            editor.clear();//Borramos los valores anteriores: pq estamos sobreescribiendo un area ya guardada!
+            editor.commit();//aplicamos el borrado
+            //editor.putString("Nmedidas", Nmed_update);//num total de medidas en el archivo
+            editor.putString("Nmedidas", String.valueOf(Nmed));//num total de medidas en el archivo
+            editor.putString("NombreArea", NumAreas[NumAreaSelec]);//nombre del area al que pertenecen esas medidas
+            editor.putString("Media", Rmedia2.toString());//actualizamos la media de las medidas
+            //Otros campos de control importantes para saber la lista de freq de cada medida
+            pref = PreferenceManager.getDefaultSharedPreferences(this);
+            editor.putString("freq1", pref.getString("freq1", ""));
+            editor.putString("freqEnd", pref.getString("freqEnd", ""));
+            editor.putString("npoint", pref.getString("npoint", ""));
+            String med_txt;
+            for (int i = 0; i < Nmed; i += 1) { //Bucle para guardar las medidas actuales guardadas
+                //med_txt = "Medida" + (i + 1 + Integer.parseInt(Nmedidas));//medida actual, teniendo en cuenta las medidas que se hicieron la vez anterior
+                med_txt = "Medida" + (i + 1);
+                editor.putString(med_txt, Rlist.get(i).toString());
+            }
+            editor.commit();
+            Toast.makeText(getApplicationContext(), "Área Guardada: " + NumAreas[NumAreaSelec] + "!", Toast.LENGTH_SHORT).show();
+        }
+
     }
 
     public void actulizaSpinnerArea(Menu menu) {
@@ -336,6 +416,10 @@ public class MainActivity extends AppCompatActivity {
         String Na = pref.getString("Narea", "");
         if (Na.equals("")) {
             Nareas = 10;
+            NumAreas = new String[Nareas];
+            for (int i = 0; i < Nareas; i += 1) {
+                NumAreas[i] = "A" + (i + 1);
+            }
         } else {
             try {
                 Nareas = Integer.parseInt(Na);
@@ -360,6 +444,7 @@ public class MainActivity extends AppCompatActivity {
     public boolean onPrepareOptionsMenu(Menu menu) {
         //Actualizamos el num de medidas realizadas
         MenuItem item = menu.findItem(R.id.action_nuevo);
+        //int Nmed = Rlist.size() + Nmed_prev;
         int Nmed = Rlist.size();
         String txt = "M: " + Nmed;
         item.setTitle(txt);
@@ -373,7 +458,7 @@ public class MainActivity extends AppCompatActivity {
 
     //Asociamos el menu a la ActionBar por defecto de la App
     @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
+    public boolean onCreateOptionsMenu(final Menu menu) {
 
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
@@ -381,7 +466,66 @@ public class MainActivity extends AppCompatActivity {
         //Actualizamos el num de areas a medir
         actulizaSpinnerArea(menu);
 
-        //Creamos la clase que manejará el evento de seleccionar una area
+        //Creamos la clase que manejará el evento resultante de seleccionar un área
+        MenuItem item = menu.findItem(R.id.cmbToolbar);
+        Spinner spinner = (Spinner) MenuItemCompat.getActionView(item);
+        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            Menu m = menu;//referencia al menu de la ActionBar, para poder acceder a los items
+
+            @Override
+            public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
+                //Procesamos el evento cuando el área actual no coincide con el nuevo area seleccionado: si no, no hay nada nuevo que mostrar
+                if (!(i == NumAreaSelec)) {
+                    //Si existe fichero del area, ya guardado anteriormente, recuperamos las medidas (pintamos por pantalla la media y última medida y actualizamos el)
+                    String nmfile = pref.getString("nameProyecto", "") + ".Area." + NumAreas[i];
+                    SharedPreferences prefArea = getSharedPreferences(nmfile, Context.MODE_PRIVATE);
+                    String Nmedidas = prefArea.getString("Nmedidas", "0");//num de medidas en el archivo
+                    int Nmed_prev = Integer.parseInt(Nmedidas);//cargamos area y actualizamos el num de medidas a las que ya se hicieron previamente en ese área
+                    if (!(Nmedidas.equals("0"))) {
+                        String med_str, media_str;
+                        MathDatos med;
+                        MathDatosD media;
+                        med_str = prefArea.getString("Medida" + Nmedidas, "");
+                        media_str = prefArea.getString("Media", "");
+                        med = MathV.vna2ReIm(med_str);
+                        media = MathV.vna2ReImD(media_str);
+
+                        //Actualizamos los valores de la última medida y la media para el área que estamos cargando
+                        Rcoef = med;
+                        Rmedia2 = media;
+
+                        //Cargamos el Array con las medidas anteriores
+                        for (int idx = 0; idx < Nmed_prev; idx += 1) {
+                            String str = prefArea.getString("Medida" + (idx + 1), "");
+                            Rlist.add(MathV.vna2ReIm(str));
+                        }
+
+                        //Grafica: medida filtrada
+                        graph.removeAllSeries();//borramos las series de los ejes
+                        MathV.pintarSerie(graph, Color.BLUE, Rcoef, confF.df, confF.xlimF, confF.ylimF, confF.fini, confF.N);
+                        MathV.pintarSerie(graph, Color.BLACK, Rmedia2, confF.df, confF.xlimF, confF.ylimF, confF.fini, confF.N);
+
+                        Toast.makeText(getApplicationContext(), "Area cargada:  " + NumAreas[i] + "!", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(getApplicationContext(), "Area nueva!", Toast.LENGTH_SHORT).show();
+                        Rlist.clear();//borramos la lista de curvas anteriores!
+                        graph.removeAllSeries();//borramos las series de los ejes
+                    }
+                    //Actualizamos el num de medidas mostrados en la ActionBar: ya sea a "0" (si es nueva área) o Nmed_anterior (si el área ya fue guardada)
+                    MenuItem item = m.findItem(R.id.action_nuevo);
+                    //int Nmed = Rlist.size() + Nmed_prev;
+                    int Nmed = Rlist.size();
+                    String txt = "M: " + Nmed;
+                    item.setTitle(txt);
+                }
+                NumAreaSelec = i;//actualizamos el área actual en la que se está midiendo
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> adapterView) {
+                //... Acciones al no existir ningún elemento seleccionado
+            }
+        });
 
         return true;
     }
@@ -424,7 +568,17 @@ public class MainActivity extends AppCompatActivity {
     public class connectTask extends AsyncTask<String, String, TCPClient> {
         @Override
         protected TCPClient doInBackground(String... message) {
-            //we create a TCPClient object and
+            //Recuperamos del archivo de conf la IP y Port del VNA ("pref" es una varible global (var de la Main activity), accesible por ConnectTask pq es una clase anidada dentro de la MainActivity)
+            String IPvna = pref.getString("ip", "");
+            String Portvna = pref.getString("port", "");
+            if (IPvna.equals("")) {
+                IPvna = "10.1.18.121";
+            }
+            if (Portvna.equals("")) {
+                Portvna = "5025";
+            }
+
+            //we create a TCPClient object, implmentamos la interfaz de TCPcliente con una clase anónima (permite comunicación de TCPCLient con el exterior) y damos los valores de IP y port del servidor
             mTcpClient = new TCPClient(new TCPClient.OnMessageReceived() {
                 @Override
                 //here the messageReceived method is implemented
@@ -432,7 +586,7 @@ public class MainActivity extends AppCompatActivity {
                     //this method calls the onProgressUpdate
                     publishProgress(message);
                 }
-            });
+            }, IPvna, Portvna);
             if (message.length == 1) { //Enviamos 1 comando
                 mTcpClient.run(message[0]); //abrimos el socket de comunicacion con el servidor
             } else { //Varios comandos a las vez
@@ -446,9 +600,12 @@ public class MainActivity extends AppCompatActivity {
         protected void onProgressUpdate(String... values) {
             super.onProgressUpdate(values);
             String msg = values[0];
-            //Toast.makeText(getApplicationContext(), "Num de puntos: " + msg.length() + " Leído S11=" + msg, Toast.LENGTH_SHORT).show();
-            lecturaS11(msg);//Tras recibir un msg, llamamos a la función que lo procesa
-            //mTcpClient.stopClient();
+            if (!(msg.equals("Error"))) {
+                lecturaS11(msg);//Tras recibir un msg, llamamos a la función que lo procesa
+                //mTcpClient.stopClient();
+            } else {
+                Toast.makeText(getApplicationContext(), "Error de red o No conectado a la Wfi del VNA", Toast.LENGTH_SHORT).show();
+            }
         }
     }
 

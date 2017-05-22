@@ -4,6 +4,8 @@ package com.example.ale.medidas;
  * Created by ale on 24/04/2017.
  */
 
+import android.content.SharedPreferences;
+import android.preference.PreferenceManager;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -13,24 +15,32 @@ import java.net.Socket;
 
 public class TCPClient {
 
-    private String serverMessage=null;
-    public static final String SERVERIP = "10.1.18.121";
-    public static final int SERVERPORT = 5025; //test con servidor echo
+    private String serverMessage = null;
+    private String SERVERIP = "10.1.18.121";//valores por defecto
+    private int SERVERPORT = 5025; //valor por defecto, en caso de que no se de este parametro en el constructor de esta clase
     private OnMessageReceived mMessageListener = null;
     private boolean mRun = false;
 
     PrintWriter out;
     BufferedReader in;
     Socket socket;
+
     /**
-     *  Constructor of the class. OnMessagedReceived listens for the messages received from server
+     * Constructor of the class. OnMessagedReceived listens for the messages received from server
      */
     public TCPClient(OnMessageReceived listener) {
-        mMessageListener = listener;
+        mMessageListener = listener; //asociamos la interfaz con un objeto externo que la implemente (de esta forma , TCPCLient puede invocar a un método de ese obj externo)
+    }
+
+    public TCPClient(OnMessageReceived listener, String ip, String port) {
+        mMessageListener = listener;//asociamos la interfaz con un objeto externo que la implemente (de esta forma , TCPCLient puede invocar a un método de ese obj externo)
+        SERVERIP=ip;//dirección IP
+        SERVERPORT=Integer.parseInt(port);//puerto
     }
 
     /**
      * Sends the message entered by client to the server
+     *
      * @param message text entered by client
      */
 
@@ -42,9 +52,11 @@ public class TCPClient {
         }
     }
 
-    public String getMsg(){return serverMessage;}
+    public String getMsg() {
+        return serverMessage;
+    }
 
-    public void stopClient(){
+    public void stopClient() {
         mRun = false;
     }
 
@@ -77,7 +89,7 @@ public class TCPClient {
                 //}
 
                 sendMessage(txt);
-                String str_end=txt.substring(txt.length()-1);
+                String str_end = txt.substring(txt.length() - 1);
                 if (str_end.equals("?")) {
                     serverMessage = in.readLine();
                     if (serverMessage != null && mMessageListener != null) {
@@ -91,15 +103,17 @@ public class TCPClient {
 
             } catch (Exception e) {
                 Log.e("TCP", "S: Error", e);
+                mMessageListener.messageReceived("Error"); //servidor no responde
             }
             //finally {
-                //the socket must be closed. It is not possible to reconnect to this socket
-                // after it is closed, which means a new socket instance has to be created.
-                //socket.close();
+            //the socket must be closed. It is not possible to reconnect to this socket
+            // after it is closed, which means a new socket instance has to be created.
+            //socket.close();
             //}
 
         } catch (Exception e) {
             Log.e("TCP", "C: Error", e);
+            mMessageListener.messageReceived("Error"); //cliente no conectado a la misma red que el servidor o sin conexión de red
             //Toast.makeText(getActivity(), "Lectura del Reference: Espere!", Toast.LENGTH_SHORT).show();
         }
 
@@ -134,8 +148,14 @@ public class TCPClient {
                     Thread.sleep(1000);//delay en la ejecucion de cada comando
                 }
                 socket.close();
-            } catch(Exception e){ Log.e("TCP", "S: Error", e);}
-        } catch (Exception e) {Log.e("TCP", "C: Error", e);}
+            } catch (Exception e) {
+                Log.e("TCP", "S: Error", e);
+                mMessageListener.messageReceived("Error"); //servidor no responde
+            }
+        } catch (Exception e) {
+            Log.e("TCP", "C: Error", e);
+            mMessageListener.messageReceived("Error"); //servidor no responde
+        }
 
     }
 

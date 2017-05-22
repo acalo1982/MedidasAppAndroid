@@ -240,7 +240,7 @@ public final class MathV {
         float[] v1Re = a1.v1();
         float[] v1Im = a1.v2();
         double M1, M2;
-        if (v1Re.length>1) {
+        if (v1Re.length > 1) {
             int N = v1Re.length;
             v3 = new double[N];
             for (int i = 0; i < N; i += 1) {
@@ -250,6 +250,7 @@ public final class MathV {
         }
         return v3;
     }
+
     //Modulo de 2 vectores en unidades naturales
     public static double[] absV(double[] v1, double[] v2) {
         double[] v3 = null;
@@ -278,6 +279,22 @@ public final class MathV {
             idx += 1;
         }
         MathDatos v3 = new MathDatos(v1, v2);
+        return v3;
+    }
+
+    //Convertimos un string con los datos devueltos por el VNA a un vector 2D de double
+    public static MathDatosD vna2ReImD(String S) {
+        String[] s11 = S.split(",");//se divide el string en arrays d string con ls digitos en el formato "2.3E-2"
+        int N = s11.length;//long del doble de elementos: los partes reales y imaginarias
+        double[] v1 = new double[N / 2];
+        double[] v2 = new double[N / 2];
+        int idx = 0;
+        for (int i = 0; i < 1 * N; i += 2) {
+            v1[idx] = Double.parseDouble(s11[i]);//parte real
+            v2[idx] = Double.parseDouble(s11[i + 1]);//parte imag
+            idx += 1;
+        }
+        MathDatosD v3 = new MathDatosD(v1, v2);
         return v3;
     }
 
@@ -531,7 +548,7 @@ public final class MathV {
     public static MathDatosD mediaAdd(MathDatos Rmed, MathDatosD Rmean, int Nmeas) {
         MathDatosD m = null;
         double Nmed = (double) Nmeas;
-        if (Nmeas > 1) { //Si hay elementos en la lista, realizamos la media
+        if (!(Rmean == null)) { //Si hay elementos en la lista, realizamos la media
             int Nfreq = Rmed.v1().length;//num de puntos de freq
             double M;
             double[] vRe = new double[Nfreq];
@@ -543,7 +560,7 @@ public final class MathV {
             m = new MathDatosD(vRe, vIm);
         }
         if (Nmeas == 1) { //Sólo hay 1 solo elemento: la media es él mismo
-            m = new MathDatosD(absdB_wV(Rmed),new double[Rmed.v1().length]);//modulo de la 1a medida (parte Im es cero y la Re = modulo)
+            m = new MathDatosD(absdB_wV(Rmed), new double[Rmed.v1().length]);//modulo de la 1a medida (parte Im es cero y la Re = modulo)
         }
         return m;
     }
@@ -552,19 +569,20 @@ public final class MathV {
     public static MathDatosD mediaDel(MathDatos Rmed, MathDatosD Rmean, int Nmeas) {
         MathDatosD m = null;
         double Nmed = (double) Nmeas;
-        if (Nmeas > 1) { //Si hay elementos en la lista, realizamos la media
+        //if (Nmeas > 1) { //Si hay elementos en la lista, realizamos la media
+        if (!(Rmean == null)) { //Si hay elementos en la lista, realizamos la media
             int Nfreq = Rmed.v1().length;//num de puntos de freq
             double M;
             double[] vRe = new double[Nfreq];
             double[] vIm = new double[Nfreq];
             for (int i = 0; i < Nfreq; i += 1) {
                 M = Math.sqrt(Math.pow(Rmed.v1()[i], 2) + Math.pow(Rmed.v2()[i], 2));//medias de los módulos en unidades naturales
-                vRe[i] = (Rmean.v1()[i] * Nmed - M) / (Nmed-1);
+                vRe[i] = (Rmean.v1()[i] * Nmed - M) / (Nmed - 1);
             }
             m = new MathDatosD(vRe, vIm);
         }
         if (Nmeas == 1) { //Sólo hay 1 solo elemento: la media es él mismo
-            m = new MathDatosD(absdB_wV(Rmed),new double[Rmed.v1().length]);//modulo de la 1a medida (parte Im es cero y la Re = modulo)
+            m = new MathDatosD(absdB_wV(Rmed), new double[Rmed.v1().length]);//modulo de la 1a medida (parte Im es cero y la Re = modulo)
         }
         return m;
     }
@@ -594,6 +612,17 @@ class MathDatos {
     public void setReIm(float[] re, float[] im) {
         Re = re;
         Im = im;
+    }
+
+    //Pasa el vector a un string como una lista separadas por comas (la parte real e im de cada componente del vector tb van separadas por coma)
+    public String toString() {
+        String str = "";
+        int N = Re.length;
+        for (int i = 0; i < N - 1; i += 1) {
+            str = str + Re[i] + "," + Im[i] + ",";
+        }
+        str = str + Re[N - 1] + "," + Im[N - 1];
+        return str;
     }
 }
 
@@ -632,6 +661,17 @@ class MathDatosD {
     public void setReIm(double[] re, double[] im) {
         Re = re;
         Im = im;
+    }
+
+    //Pasa el vector a un string como una lista separadas por comas (la parte real e im de cada componente del vector tb van separadas por coma)
+    public String toString() {
+        String str = "";
+        int N = Re.length;
+        for (int i = 0; i < N - 1; i += 1) {
+            str = str + Re[i] + "," + Im[i] + ",";
+        }
+        str = str + Re[N - 1] + "," + Im[N - 1];
+        return str;
     }
 }
 
