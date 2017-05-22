@@ -369,6 +369,13 @@ public class MainActivity extends AppCompatActivity {
 
     //Sobreescribir el comportamiento pulsar el botón "hacia atrás" en la actividad principal: evitar que se cierre la app y perder los datos no guardados!
     //Además, parece que se puede capturar el evento "right click" de un ratón conectado por micro-usb/bluetooth
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        onBackPressed();
+    }
+
     @Override
     public void onBackPressed() {
 
@@ -402,6 +409,7 @@ public class MainActivity extends AppCompatActivity {
             }
             editor.commit();
             Toast.makeText(getApplicationContext(), "Área Guardada: " + NumAreas[NumAreaSelec] + "!", Toast.LENGTH_SHORT).show();
+            conectado = 1;
         }
 
     }
@@ -452,6 +460,14 @@ public class MainActivity extends AppCompatActivity {
 
         //Actualizamos el num de areas a medir
         actulizaSpinnerArea(menu);
+
+        //Pintamos el botón en rojo (estamos conectados)
+        item = menu.findItem(R.id.action_settings);
+        if (conectado==1) {
+            item.setIcon(android.R.drawable.ic_notification_overlay);
+        }else{
+            item.setIcon(android.R.drawable.presence_invisible);
+        }
 
         return true;
     }
@@ -603,8 +619,11 @@ public class MainActivity extends AppCompatActivity {
             if (!(msg.equals("Error"))) {
                 lecturaS11(msg);//Tras recibir un msg, llamamos a la función que lo procesa
                 //mTcpClient.stopClient();
+                conectado =  1;
             } else {
                 Toast.makeText(getApplicationContext(), "Error de red o No conectado a la Wfi del VNA", Toast.LENGTH_SHORT).show();
+                conectado = 0; //boton en gris pq ha habido un fallo
+                invalidateOptionsMenu();//actualiza la actionBar para dibujar el boton en gris
             }
         }
     }
