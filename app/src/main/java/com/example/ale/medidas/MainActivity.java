@@ -53,6 +53,7 @@ public class MainActivity extends AppCompatActivity {
     private SharedPreferences pref;//permite leer el fichero de conf por defecto
     private int NumAreaSelec = -1;//area actual de medida (por defecto, aparecemos en el area 0)
     //private int Nmed_prev = 0;//num de medidas ya realizadas en el área actual (se actualiza cuando se guarde el área por 1a vez!)
+    private boolean actualizarArea=false; //sólo actualizamos las áreas cuando volvemos de la pantalla de conf.
 
 //    @Override
 //    protected void onResume(){
@@ -188,14 +189,16 @@ public class MainActivity extends AppCompatActivity {
         double df = (f2 - f1) / Npoint;
         double[] xlimF = new double[]{f1, f2};
         double[] ylimF = new double[]{-35, 5};
-        confF = new confFreq(df, xlimF, ylimF, f1, f2,(int) Npoint);//guardamos la conf de medida por defecto
+        confF = new confFreq(df, xlimF, ylimF, f1, f2, (int) Npoint);//guardamos la conf de medida por defecto
     }
 
     //Este método es llamado cuando damos al botón HW atrás, desde la actividad de configuración (objetivo: actualizar el spinner con las áreas disponibles de la Actionbar!)
     @Override
     protected void onResume() {
         super.onResume();  // Always call the superclass method first
+        actualizarArea=true;
         invalidateOptionsMenu();//esto hace una llamada a la función "onPrepareOptionsMenu()" q tiene acceso a los items de la actionbar
+        actualizarArea=false;
     }
 
     @Override
@@ -450,7 +453,7 @@ public class MainActivity extends AppCompatActivity {
     //Actualiza la actionbar tras una llamada a "invalidateOptionsMenu()" (aprovecharemos para cambiar el título del item de la actionbar q usaremos para mostrar el num. medidas actual
     @Override
     public boolean onPrepareOptionsMenu(Menu menu) {
-        //Actualizamos el num de medidas realizadas
+        //Actualizamos el num de medidas realizadas: Tras realizar cada medida, se actualiza
         MenuItem item = menu.findItem(R.id.action_nuevo);
         //int Nmed = Rlist.size() + Nmed_prev;
         int Nmed = Rlist.size();
@@ -458,14 +461,16 @@ public class MainActivity extends AppCompatActivity {
         item.setTitle(txt);
         //Log.i("ActionBar.Nuevo", "alej: Nmed = "+Nmed);
 
-        //Actualizamos el num de areas a medir
-        actulizaSpinnerArea(menu);
+        //Actualizamos el num de areas a medir: en teoría debe hacerse cuando pulsamos el botón "atrás" desde la pantalla de conf
+        if (actualizarArea==true) {
+            actulizaSpinnerArea(menu);
+        }
 
         //Pintamos el botón en rojo (estamos conectados)
         item = menu.findItem(R.id.action_settings);
-        if (conectado==1) {
+        if (conectado == 1) {
             item.setIcon(android.R.drawable.ic_notification_overlay);
-        }else{
+        } else {
             item.setIcon(android.R.drawable.presence_invisible);
         }
 
@@ -479,9 +484,6 @@ public class MainActivity extends AppCompatActivity {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
 
-        //Actualizamos el num de areas a medir
-        actulizaSpinnerArea(menu);
-
         //Creamos la clase que manejará el evento resultante de seleccionar un área
         MenuItem item = menu.findItem(R.id.cmbToolbar);
         Spinner spinner = (Spinner) MenuItemCompat.getActionView(item);
@@ -492,12 +494,16 @@ public class MainActivity extends AppCompatActivity {
             public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
                 //Procesamos el evento cuando el área actual no coincide con el nuevo area seleccionado: si no, no hay nada nuevo que mostrar
                 if (!(i == NumAreaSelec)) {
-                    //Si existe fichero del area, ya guardado anteriormente, recuperamos las medidas (pintamos por pantalla la media y última medida y actualizamos el)
+                    //--Si existe fichero del area, ya guardado anteriormente, recuperamos las medidas (pintamos por pantalla la media y última medida y actualizamos el)
+                    //Borramos datos anteriores
+                    Rlist.clear();//borramos la lista de curvas anteriores!
+                    graph.removeAllSeries();//borramos las series de los ejes
+                    //Abrimos o creamos (si no existe) el fichero de conf. para ese área
                     String nmfile = pref.getString("nameProyecto", "") + ".Area." + NumAreas[i];
                     SharedPreferences prefArea = getSharedPreferences(nmfile, Context.MODE_PRIVATE);
                     String Nmedidas = prefArea.getString("Nmedidas", "0");//num de medidas en el archivo
                     int Nmed_prev = Integer.parseInt(Nmedidas);//cargamos area y actualizamos el num de medidas a las que ya se hicieron previamente en ese área
-                    if (!(Nmedidas.equals("0"))) {
+                    if (!(Nmedidas.equals("0"))) { //Si existen medidas guardadas, las carga
                         String med_str, media_str;
                         MathDatos med;
                         MathDatosD media;
@@ -517,15 +523,12 @@ public class MainActivity extends AppCompatActivity {
                         }
 
                         //Grafica: medida filtrada
-                        graph.removeAllSeries();//borramos las series de los ejes
                         MathV.pintarSerie(graph, Color.BLUE, Rcoef, confF.df, confF.xlimF, confF.ylimF, confF.fini, confF.N);
                         MathV.pintarSerie(graph, Color.BLACK, Rmedia2, confF.df, confF.xlimF, confF.ylimF, confF.fini, confF.N);
 
                         Toast.makeText(getApplicationContext(), "Area cargada:  " + NumAreas[i] + "!", Toast.LENGTH_SHORT).show();
-                    } else {
+                    } else { //Si no existen medidas, es q ese área es nueva y no se ha guardado nada previamente
                         Toast.makeText(getApplicationContext(), "Area nueva!", Toast.LENGTH_SHORT).show();
-                        Rlist.clear();//borramos la lista de curvas anteriores!
-                        graph.removeAllSeries();//borramos las series de los ejes
                     }
                     //Actualizamos el num de medidas mostrados en la ActionBar: ya sea a "0" (si es nueva área) o Nmed_anterior (si el área ya fue guardada)
                     MenuItem item = m.findItem(R.id.action_nuevo);
@@ -542,6 +545,9 @@ public class MainActivity extends AppCompatActivity {
                 //... Acciones al no existir ningún elemento seleccionado
             }
         });
+
+        //Actualizamos el num de areas a medir
+        actulizaSpinnerArea(menu);
 
         return true;
     }
@@ -619,7 +625,7 @@ public class MainActivity extends AppCompatActivity {
             if (!(msg.equals("Error"))) {
                 lecturaS11(msg);//Tras recibir un msg, llamamos a la función que lo procesa
                 //mTcpClient.stopClient();
-                conectado =  1;
+                conectado = 1;
             } else {
                 Toast.makeText(getApplicationContext(), "Error de red o No conectado a la Wfi del VNA", Toast.LENGTH_SHORT).show();
                 conectado = 0; //boton en gris pq ha habido un fallo
