@@ -53,7 +53,10 @@ public class MainActivity extends AppCompatActivity {
     private SharedPreferences pref;//permite leer el fichero de conf por defecto
     private int NumAreaSelec = -1;//area actual de medida (por defecto, aparecemos en el area 0)
     //private int Nmed_prev = 0;//num de medidas ya realizadas en el área actual (se actualiza cuando se guarde el área por 1a vez!)
-    private boolean actualizarArea=false; //sólo actualizamos las áreas cuando volvemos de la pantalla de conf.
+    private boolean actualizarArea = false; //sólo actualizamos las áreas cuando volvemos de la pantalla de conf.
+    private double[] freq;
+    private int criterio_ico=10;//se pone el icono de criterio en modo transparente
+    private double fo=10;//nos centramos en 10GHz para probar los criterios con la plancha CAL1
 
 //    @Override
 //    protected void onResume(){
@@ -183,6 +186,10 @@ public class MainActivity extends AppCompatActivity {
             editor.putString("puerto", "5025");
             editor.commit();
         }
+        if (pref.getString("esquema", "").equals("")) {
+            editor.putString("esquema", "BandaXMetal");
+            editor.commit();
+        }
         double f1 = Double.parseDouble(pref.getString("freq1", "2"));
         double f2 = Double.parseDouble(pref.getString("freqEnd", "18"));
         double Npoint = Double.parseDouble(pref.getString("npoint", "201"));
@@ -190,15 +197,19 @@ public class MainActivity extends AppCompatActivity {
         double[] xlimF = new double[]{f1, f2};
         double[] ylimF = new double[]{-35, 5};
         confF = new confFreq(df, xlimF, ylimF, f1, f2, (int) Npoint);//guardamos la conf de medida por defecto
+        freq = new double[(int) Npoint];
+        for (int i = 1; i < Npoint; i += 1) {
+            freq[i] = 2 + df * i;
+        }
     }
 
     //Este método es llamado cuando damos al botón HW atrás, desde la actividad de configuración (objetivo: actualizar el spinner con las áreas disponibles de la Actionbar!)
     @Override
     protected void onResume() {
         super.onResume();  // Always call the superclass method first
-        actualizarArea=true;
+        actualizarArea = true;
         invalidateOptionsMenu();//esto hace una llamada a la función "onPrepareOptionsMenu()" q tiene acceso a los items de la actionbar
-        actualizarArea=false;
+        actualizarArea = false;
     }
 
     @Override
@@ -232,12 +243,19 @@ public class MainActivity extends AppCompatActivity {
             graph.removeAllSeries();//borramos las series de los ejes
             MathV.pintarSerie(graph, Color.BLUE, Rcoef, confF.df, confF.xlimF, confF.ylimF, confF.fini, confF.N);
             MathV.pintarSerie(graph, Color.BLACK, Rmedia2, confF.df, confF.xlimF, confF.ylimF, confF.fini, confF.N);
+
+            //Criterio aplicado a la curva medida
+            double[] Rmod = MathV.absDB_wV(Rcoef);
+            criterioCurva criterio = new criterioCurva(freq, Rmod);
+            criterio_ico = Math.abs(criterio.BandaXmetal(fo));//criterio aplicado a 10GHz
+
             setContMedItem();//set contador de medidas en la actionbar
         }
         if (Nmeas == 1) {
             Rlist.remove(Nmeas - 1);//eliminamos el único elemento
             Rcoef = null;
             Rmedia = null;
+            criterio_ico=10;//icono de criterio transparente
             graph.removeAllSeries();//borramos los ejes
             setContMedItem();//set contador de medidas en la actionbar
         }
@@ -351,18 +369,25 @@ public class MainActivity extends AppCompatActivity {
         MathDatos[] S2 = MathV.calBackRef(Scal_t, N);
         Rcoef = S2[0];//S11 de la medida calibrado!
 
-
         //Añadimos la nueva medida a la lista de medidas
         Rlist.add(Rcoef);
         Log.e("lecturaS11", "alej: Nmeas = " + Rlist.size());
         MathV.pintarSerie(graph, Color.BLUE, Rcoef, df, xlimF, ylimF, fini, N);
         Rmedia2 = MathV.mediaAdd(Rcoef, Rmedia2, Rlist.size());//última media
-        setContMedItem();//actualizamos el num de medidas en el menu
+
+        //Criterio aplicado a la curva medida
+        double[] Rmod = MathV.absDB_wV(Rcoef);
+        criterioCurva criterio = new criterioCurva(freq, Rmod);
+        criterio_ico = Math.abs(criterio.BandaXmetal(fo));//criterio aplicado a 10GHz
+
 
         //Grafica: medida filtrada
         graph.removeAllSeries();//borramos las series de los ejes
         MathV.pintarSerie(graph, Color.BLUE, Rcoef, df, xlimF, ylimF, fini, N);
         MathV.pintarSerie(graph, Color.BLACK, Rmedia2, df, xlimF, ylimF, fini, N);
+
+        //Actualizamos el num de medidas e icono de criterio en el menu
+        setContMedItem();
 
         //Pintamos la operación inversa para ver si obtenemos la curva original "FFT(IFFT)": Para que sea correcto es necesario hacer "1/Nfft*FFT(IFFT)"
         //(sólo pintamos los N primeros valores, pq los restantes hasta llegar a Nfft serán 0: zero padding!!)
@@ -417,6 +442,7 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    //Actualiza los nombres de las areas o el num de areas a medir
     public void actulizaSpinnerArea(Menu menu) {
         //Spinner: Asociamos el Adaptador con el contenido
         MenuItem item = menu.findItem(R.id.cmbToolbar);
@@ -450,6 +476,27 @@ public class MainActivity extends AppCompatActivity {
         spinner.setAdapter(adaptador);
     }
 
+    //Actualiza el icono del criterio para la última medida
+    public void actualizaCriterio(Menu menu){
+        MenuItem item2 = menu.findItem(R.id.criterio);
+        switch (criterio_ico){
+            case 1: //No necesita ser pintado más
+                item2.setIcon(android.R.drawable.presence_busy);
+                break;
+            case 2: //Necesita menor espesor
+                item2.setIcon(android.R.drawable.button_onoff_indicator_on);
+                break;
+            case 3: //Espesor adecuado
+                item2.setIcon(android.R.drawable.btn_star_big_on);
+                break;
+            case 4: //Necesita mayor espesor
+                item2.setIcon(android.R.drawable.ic_input_add);
+                break;
+            default: //La curva S11 no es correcta (no tiene mínimos o tiene un formato que no es el esperado)
+                item2.setIcon(android.R.drawable.screen_background_light_transparent);
+                break;
+        }
+    }
     //Actualiza la actionbar tras una llamada a "invalidateOptionsMenu()" (aprovecharemos para cambiar el título del item de la actionbar q usaremos para mostrar el num. medidas actual
     @Override
     public boolean onPrepareOptionsMenu(Menu menu) {
@@ -462,9 +509,14 @@ public class MainActivity extends AppCompatActivity {
         //Log.i("ActionBar.Nuevo", "alej: Nmed = "+Nmed);
 
         //Actualizamos el num de areas a medir: en teoría debe hacerse cuando pulsamos el botón "atrás" desde la pantalla de conf
-        if (actualizarArea==true) {
+        if (actualizarArea == true) {
             actulizaSpinnerArea(menu);
         }
+
+
+        //Actualizamos el icono del criterio de la medida
+        actualizaCriterio(menu);
+
 
         //Pintamos el botón en rojo (estamos conectados)
         item = menu.findItem(R.id.action_settings);
@@ -526,9 +578,17 @@ public class MainActivity extends AppCompatActivity {
                         MathV.pintarSerie(graph, Color.BLUE, Rcoef, confF.df, confF.xlimF, confF.ylimF, confF.fini, confF.N);
                         MathV.pintarSerie(graph, Color.BLACK, Rmedia2, confF.df, confF.xlimF, confF.ylimF, confF.fini, confF.N);
 
+                        //Criterio aplicado a la curva medida
+                        double[] Rmod = MathV.absDB_wV(Rcoef);
+                        criterioCurva criterio = new criterioCurva(freq, Rmod);
+                        criterio_ico = Math.abs(criterio.BandaXmetal(fo));//criterio aplicado a 10GHz
+                        actualizaCriterio(m);
+
                         Toast.makeText(getApplicationContext(), "Area cargada:  " + NumAreas[i] + "!", Toast.LENGTH_SHORT).show();
                     } else { //Si no existen medidas, es q ese área es nueva y no se ha guardado nada previamente
                         Toast.makeText(getApplicationContext(), "Area nueva!", Toast.LENGTH_SHORT).show();
+                        criterio_ico=10;
+                        actualizaCriterio(m);
                     }
                     //Actualizamos el num de medidas mostrados en la ActionBar: ya sea a "0" (si es nueva área) o Nmed_anterior (si el área ya fue guardada)
                     MenuItem item = m.findItem(R.id.action_nuevo);

@@ -4,6 +4,13 @@
     tools:context=".MainActivity">
 
     <item
+        android:id="@+id/criterio"
+        android:icon="@android:drawable/screen_background_light_transparent"
+        android:orderInCategory="100"
+        android:title="EvaluacionMedida"
+        app:showAsAction="always" />
+
+    <item
         android:id="@+id/cmbToolbar"
         android:title="Área"
         app:actionViewClass="android.widget.Spinner"

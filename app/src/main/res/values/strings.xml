@@ -7,4 +7,12 @@
     <string name="action_nuevo">Nuevo</string>
     <string name="prueba">Prueba</string>
     <string name="checkbox">Checkbox</string>
+    <string-array name="esquemas">
+        <item>Banda X sobre Metal</item>
+        <item>Banda X sobre Fibra</item>
+    </string-array>
+    <string-array name="esquemavalues">
+        <item>BandaXMetal</item>
+        <item>BandaXFibra</item>
+    </string-array>
 </resources>

@@ -6,6 +6,7 @@ import android.util.Log;
 import com.jjoe64.graphview.GraphView;
 import com.jjoe64.graphview.series.DataPoint;
 import com.jjoe64.graphview.series.LineGraphSeries;
+import com.jjoe64.graphview.series.PointsGraphSeries;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.math.NumberUtils;
@@ -14,6 +15,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 import fastandroid.neoncore.collection.FaCollection;
+
+import static com.example.ale.medidas.MathV.min_max;
+import static org.apache.commons.lang3.ArrayUtils.add;
+import static org.apache.commons.lang3.ArrayUtils.indexOf;
+import static org.apache.commons.lang3.math.NumberUtils.min;
 
 /**
  * Created by ale on 11/05/2017.
@@ -251,6 +257,23 @@ public final class MathV {
         return v3;
     }
 
+    //Modulo de la combinación de 2 vectores
+    public static double[] absDB_wV(MathDatos a1) {
+        double[] v3 = null;
+        float[] v1Re = a1.v1();
+        float[] v1Im = a1.v2();
+        double M1, M2;
+        if (v1Re.length > 1) {
+            int N = v1Re.length;
+            v3 = new double[N];
+            for (int i = 0; i < N; i += 1) {
+                M1 = Math.sqrt(Math.pow(v1Re[i], 2) + Math.pow(v1Im[i], 2));//modulo1
+                v3[i] = 20*Math.log10(M1);//diferencia entre los modulos para cada componente del vector
+            }
+        }
+        return v3;
+    }
+
     //Modulo de 2 vectores en unidades naturales
     public static double[] absV(double[] v1, double[] v2) {
         double[] v3 = null;
@@ -325,7 +348,7 @@ public final class MathV {
 
         //Posicion de filtrado: distancia a la que ocurre la reflex.
         float[] dist = absdB_wV(Sb_t, Sr_t, 1, -1);
-        int pos_max = ArrayUtils.indexOf(dist, NumberUtils.max(dist));
+        int pos_max = indexOf(dist, NumberUtils.max(dist));
         int pos1 = (int) pos_max - (L / 2);
         int pos2 = (int) pos_max + (L / 2);
 
@@ -467,7 +490,7 @@ public final class MathV {
         graph.getViewport().setMaxX(xlim[1]);
     }
 
-    //Metodo para pintar una gráfica en unos ejes, dando los ejes y creando un objeto curva en cada llamada
+    //(para "float")Metodo para pintar una gráfica en unos ejes, dando los ejes y creando un objeto curva en cada llamada
     public static void pintarSerie(GraphView graph, int cl, MathDatos Sm, double dx, double[] xlim, double[] ylim, double fini, int Nmax) {
         LineGraphSeries<DataPoint> mSerie = new LineGraphSeries<>();
         graph.addSeries(mSerie);//añadimos la serie a los ejes
@@ -478,13 +501,31 @@ public final class MathV {
         int Nfft = Nmax;
         DataPoint[] points3 = new DataPoint[Nfft];
         //Pintamos la IFFT
+        double[] Mlist = new double[Nmax];
+        double M;
         for (int i = 0; i < Nfft; i += 1) {
-            double M = Math.sqrt(Math.pow(Sm_Re_t[i], 2) + Math.pow(Sm_Im_t[i], 2));//modulo
+            M = Math.sqrt(Math.pow(Sm_Re_t[i], 2) + Math.pow(Sm_Im_t[i], 2));//modulo
             M = 20 * Math.log10(M);//modulo en dB
+            Mlist[i] = M;
             double x = fini + i * dx;//retardo de ida y vuelta
             points3[i] = new DataPoint(x, M);
             mSerie.appendData(points3[i], true, Nfft);
         }
+
+        //Pintar los puntos donde se alcanzan los mínimos
+        positionValor minLocales = min_max(Mlist, "min");
+        if (!(minLocales == null)) { //Si existen mínimos, se pintan!
+            PointsGraphSeries<DataPoint> serie_point = new PointsGraphSeries<>();
+            graph.addSeries(serie_point);
+            serie_point.setShape(PointsGraphSeries.Shape.POINT);
+            for (int i = 0; i < minLocales.idx.length; i += 1) {
+                double x = fini + minLocales.idx[i] * dx;//freq del minimo
+                points3[i] = new DataPoint(x, minLocales.valor[i]);
+                serie_point.appendData(points3[i], true, minLocales.idx.length);
+            }
+        }
+
+        // set manual Y bounds
         graph.getViewport().setYAxisBoundsManual(true);
         graph.getViewport().setMinY(ylim[0]);
         graph.getViewport().setMaxY(ylim[1]);
@@ -494,7 +535,7 @@ public final class MathV {
         graph.getViewport().setMaxX(xlim[1]);
     }
 
-    //Metodo para pintar una gráfica en unos ejes, dando los ejes y creando un objeto curva en cada llamada
+    //(para "double")Metodo para pintar una gráfica en unos ejes, dando los ejes y creando un objeto curva en cada llamada
     public static void pintarSerie(GraphView graph, int cl, MathDatosD Sm, double dx, double[] xlim, double[] ylim, double fini, int Nmax) {
         LineGraphSeries<DataPoint> mSerie = new LineGraphSeries<>();
         graph.addSeries(mSerie);//añadimos la serie a los ejes
@@ -586,6 +627,54 @@ public final class MathV {
         }
         return m;
     }
+
+    //Devuelve el menor de los minimos(maximo) locales del vector y
+    public static positionValor min_max(double[] y, String tipo) {
+        positionValor info = null;
+        double[] minLoc = null;
+        double[] pos = null;
+
+        double minmax = 0;
+        int N = y.length;
+        double[] ysg = new double[N - 1];
+        double[] ymin = new double[N - 2];
+
+        //calcula el incremento en cada punto: dy=y'(x)*dx
+        for (int i = 0; i < N - 1; i += 1) {
+            ysg[i] = y[i + 1] - y[i];
+            //obtenemos el signo del incremento o derivada
+            if (ysg[i] >= 0) {
+                ysg[i] = 1;
+            } else {
+                ysg[i] = -1;
+            }
+        }
+
+        //Vemos cuando existe un cambio de signo al pasar de un punto a otro: 0 (no hay cambio de signo), 2 (minimo local) y -2 (maximo loca)
+        for (int i = 0; i < N - 2; i += 1) {
+            ymin[i] = ysg[i + 1] - ysg[i];
+            if (tipo.equals("min")) { //Devuelve la pos de los minimo locales
+                if (ymin[i] == 2) {
+                    minLoc = add(minLoc, y[i + 1]); //incrementamos en 1 la pos del min, para contrarrestar el efecto de tener "ysg[]" N-1 elementos en vez de N
+                    pos = add(pos, i + 1);
+                    Log.e("MathV.min_max", "alej: Minimo local [idx, value] = [" + (i + 1) + ", " + y[i + 1] + "]");
+                }
+            } else { //Devuelve la posición de los max
+                if (ymin[i] == -2) {
+                    minLoc = add(minLoc, y[i + 1]);
+                    pos = add(pos, i + 1);
+                }
+            }
+        }
+
+        //Devolvemos el menor de los minimos obtenidos y su posición dentro del array (en caso de que no existan minimos, se devuelve "null")
+        if (!(minLoc == null)) {
+            info = new positionValor(pos, minLoc);
+        }
+        return info;
+    }
+
+
 }
 
 
@@ -694,6 +783,116 @@ class confFreq {
     }
 
 }
+
+class criterioCurva {
+    private double[] ymod; //modulo de la medida, sobre la que aplicaremos cierto criterio
+    private double[] freq;
+
+    public criterioCurva(double[] f, double[] y) {
+        ymod = y;
+        freq = f;
+    }
+
+    //Criterio para mono banda sobre metal en banda X
+    public int BandaXmetal(double fo) {
+        //Los valores devueltos podrán ser: 0 (curva erronea), 1 (No pintar), 2 (Pintar un poco), 3 (Correcto), 4(Pintar más)
+
+        int resultado = 0;
+        double S11maxdB = -10;//umbral: max valor del S11 permitido
+        double df = freq[2] - freq[1];
+        double bw = 0.2;//0.2GHz entorno a "fo"
+        int dpos = (int) (bw / df);
+        if (dpos == 0) {
+            dpos = 1;
+        }
+        int posfo = indexOf(freq, fo, 0, df);
+
+        //Comprobar si la curva cumple la especificación en la freq "fo" (+-200MHz)
+        double[] yfo_bw = ArrayUtils.subarray(ymod, posfo - dpos, posfo + dpos + 1);//(ymod entorno al punto "fo")
+        double[] freq_bw = ArrayUtils.subarray(freq, posfo - dpos, posfo + dpos + 1);//(ymod entorno al punto "fo")
+        double yminfo = min(yfo_bw);
+        Log.e("BandaXmetal","alej: [fmin, S11] = ["+freq[posfo]+", "+yminfo+"]");
+        if (yminfo<=S11maxdB){
+            Log.e("BandaXmetal","alej: Resultado 3: Cumple Spec [fmin, S11] = ["+freq[posfo]+", "+yminfo+"]");
+            return 3;
+        }else{
+            positionValor minLocyofo = min_max(yfo_bw, "min");
+            if (!(minLocyofo==null)){
+                double kk=min(minLocyofo.valor);
+                int kk_pos = indexOf(minLocyofo.valor, kk, 0);
+                Log.e("BandaXmetal","alej: Resultado -3: Cumple Spec Baja Atenuación  [fmin, S11] = ["+freq_bw[kk_pos]+", "+yfo_bw[kk_pos]+"]");
+                return -3; //existe un pico en fo, pero con poca atenuación
+            }
+        }
+
+        //Comprobar si existe minimo de 2 a fo GHz
+        double[] y1 = ArrayUtils.subarray(ymod, 0, posfo - dpos);
+        int flag1 = 0;
+        double freq1 = 0;
+        positionValor minLoc1 = min_max(y1, "min");
+        if (!(minLoc1 == null)) {
+            double y1min = min(minLoc1.valor);
+            int ymin1_pos = indexOf(minLoc1.valor, y1min, 0);
+            freq1 = freq[0] + df * ymin1_pos;//freq del minimo1
+            flag1 = -1;
+            if (y1min <= S11maxdB) {
+                flag1 = 1;
+            }
+        }
+
+        //Comprobar si existe minimo entre fo y 18GHz
+        double[] y2 = ArrayUtils.subarray(ymod, posfo + dpos, ymod.length);
+        int flag2 = 0;
+        positionValor minLoc2 = min_max(y2, "min");
+        if (!(minLoc2 == null)) {
+            double y1min = min(minLoc2.valor);
+            flag2 = -1;
+            if (y1min <= S11maxdB) {
+                flag2 = 1;
+            }
+        }
+
+        //Curva no correcta, hay 2 minimos: por delante y por detrás de fo
+        if (flag1 == 1 && flag2 == 1) {
+            Log.e("BandaXmetal","alej: Resultado 0: Hay 2 mínimos!");
+            return 0;
+        }
+
+        //Pico entre 2 y fo GHz:
+        if (Math.abs((flag1)) == 1) {
+            if (freq1 < 8) {
+                Log.e("BandaXmetal","alej: Resultado 1: Parar de Pintar");
+                resultado = 1;
+            } else {
+                Log.e("BandaXmetal","alej: Resultado 2: No pintar Mucho");
+                resultado = 2;
+            }
+            return resultado * flag1;//el signo distingue si tenemos atenuación >-10dB
+        }
+
+        //Pico entre fo y 18 GHz: No seguir pintando!
+        if (Math.abs((flag2)) == 1) {
+            Log.e("BandaXmetal","alej: Resultado 4: Pintar");
+            return 4 * flag2;//el signo distingue si tenemos atenuación >-10dB
+        }
+
+        //Si no existen ningún minimo
+        Log.e("BandaXmetal","alej: Resultado 0: No existen mínimos!");
+        return 0;
+    }
+}
+
+class positionValor {
+    public double[] idx;
+    public double[] valor;
+
+    public positionValor(double[] idx, double[] valor) {
+        this.idx = idx;
+        this.valor = valor;
+    }
+}
+
+
 //class MediaV{
 //    private MathDatos v; //vector complejo conteniendo la media actual
 //    private double cont; //contador del numero de curvas promediadas hasta el momento

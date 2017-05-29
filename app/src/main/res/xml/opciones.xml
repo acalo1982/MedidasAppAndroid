@@ -13,7 +13,17 @@
         android:key="Narea"
         android:selectAllOnFocus="true"
         android:singleLine="true"
-        android:title="Num. Áreas de Medida" />
+        android:title="Áreas de Medida" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="Esquema de Pintado">
+        <ListPreference
+            android:key="esquema"
+            android:title="Esquemas"
+            android:entries="@array/esquemas"
+            android:entryValues="@array/esquemavalues" />
+        <!--android:summary="Descripción de la preferencia 3"-->
+        <!--android:dialogTitle="Indicar Pais"-->
     </PreferenceCategory>
 
     <PreferenceCategory android:title="Calibración">
