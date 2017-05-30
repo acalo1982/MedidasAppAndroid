@@ -193,13 +193,14 @@ public class MainActivity extends AppCompatActivity {
         double f1 = Double.parseDouble(pref.getString("freq1", "2"));
         double f2 = Double.parseDouble(pref.getString("freqEnd", "18"));
         double Npoint = Double.parseDouble(pref.getString("npoint", "201"));
-        double df = (f2 - f1) / Npoint;
+        double df = (f2 - f1) / (Npoint-1);
         double[] xlimF = new double[]{f1, f2};
         double[] ylimF = new double[]{-35, 5};
         confF = new confFreq(df, xlimF, ylimF, f1, f2, (int) Npoint);//guardamos la conf de medida por defecto
         freq = new double[(int) Npoint];
-        for (int i = 1; i < Npoint; i += 1) {
-            freq[i] = 2 + df * i;
+        for (int i = 0; i < Npoint; i += 1) {
+            freq[i] = f1 + df * i;
+            //Log.e("MainAct.OnCreate","alej: freq["+i+"] = "+freq[i]);
         }
     }
 
@@ -377,6 +378,7 @@ public class MainActivity extends AppCompatActivity {
 
         //Criterio aplicado a la curva medida
         double[] Rmod = MathV.absDB_wV(Rcoef);
+        Log.e("lecturaS11", "alej: freq[0] = " + freq[0]);
         criterioCurva criterio = new criterioCurva(freq, Rmod);
         criterio_ico = Math.abs(criterio.BandaXmetal(fo));//criterio aplicado a 10GHz
 
@@ -491,6 +493,9 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case 4: //Necesita mayor espesor
                 item2.setIcon(android.R.drawable.ic_input_add);
+                break;
+            case 5: //Curva con forma erronea: p.e medir el background o metal o que aparezcan multiples picos de absorción <-10dB (para el monobanda)
+                item2.setIcon(android.R.drawable.presence_offline);
                 break;
             default: //La curva S11 no es correcta (no tiene mínimos o tiene un formato que no es el esperado)
                 item2.setIcon(android.R.drawable.screen_background_light_transparent);

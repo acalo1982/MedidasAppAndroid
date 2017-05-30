@@ -16,6 +16,7 @@ import java.util.Arrays;
 
 import fastandroid.neoncore.collection.FaCollection;
 
+import static com.example.ale.medidas.MathV.contadorCondicion;
 import static com.example.ale.medidas.MathV.min_max;
 import static org.apache.commons.lang3.ArrayUtils.add;
 import static org.apache.commons.lang3.ArrayUtils.indexOf;
@@ -268,7 +269,7 @@ public final class MathV {
             v3 = new double[N];
             for (int i = 0; i < N; i += 1) {
                 M1 = Math.sqrt(Math.pow(v1Re[i], 2) + Math.pow(v1Im[i], 2));//modulo1
-                v3[i] = 20*Math.log10(M1);//diferencia entre los modulos para cada componente del vector
+                v3[i] = 20 * Math.log10(M1);//diferencia entre los modulos para cada componente del vector
             }
         }
         return v3;
@@ -657,7 +658,7 @@ public final class MathV {
                 if (ymin[i] == 2) {
                     minLoc = add(minLoc, y[i + 1]); //incrementamos en 1 la pos del min, para contrarrestar el efecto de tener "ysg[]" N-1 elementos en vez de N
                     pos = add(pos, i + 1);
-                    Log.e("MathV.min_max", "alej: Minimo local [idx, value] = [" + (i + 1) + ", " + y[i + 1] + "]");
+                    //Log.e("MathV.min_max", "alej: Minimo local [idx, value] = [" + (i + 1) + ", " + y[i + 1] + "]");
                 }
             } else { //Devuelve la posición de los max
                 if (ymin[i] == -2) {
@@ -674,7 +675,16 @@ public final class MathV {
         return info;
     }
 
-
+    public static int contadorCondicion(double[] v, double L) {
+        int cnt = 0;
+        int N = v.length;
+        for (int i = 0; i < N; i += 1) {
+            if (v[i] <= L) {
+                cnt += 1;
+            }
+        }
+        return cnt;
+    }
 }
 
 
@@ -807,81 +817,117 @@ class criterioCurva {
         }
         int posfo = indexOf(freq, fo, 0, df);
 
+        //Comprabar si la curva es errónea: (código 5), Si tiene 2 picos <-10dB o la media es <-10dB (medida del background o antena mal apoyada o superficie curva) o media es > -3dB (midiendo metal)
+        positionValor minLocAll = min_max(ymod, "min");
+        int N = ymod.length;
+        double ymeandB = 0;
+        for (int i = 0; i < ymod.length; i += 1) {
+            ymeandB += ymod[i] / N;
+        }
+        //Media con valor muy bajo (medida al aire) o muy alto (medida metal)
+        if (ymeandB >= -3 || ymeandB <= -10) {
+            Log.e("BandaXmetal", "alej: Curva Erronea ymeas = " + ymeandB);
+            return 5;
+        }
+        //Multiples picos de absorción con baja atenuación: estaríamos midiendo un esquema de doble banda o cualquier otra curva errónea
+        int cnt = 0;//contador d picos con |S11|<-10dB
+        for (int i = 0; i < minLocAll.valor.length; i += 1) {
+            if (minLocAll.valor[i] <= S11maxdB) {
+                cnt += 1;
+            }
+            if (cnt > 1) {
+                Log.e("BandaXmetal", "alej: Curva Erronea Npicos <-6dB = " + cnt);
+                return 5;
+            }
+
+        }
+
         //Comprobar si la curva cumple la especificación en la freq "fo" (+-200MHz)
         double[] yfo_bw = ArrayUtils.subarray(ymod, posfo - dpos, posfo + dpos + 1);//(ymod entorno al punto "fo")
         double[] freq_bw = ArrayUtils.subarray(freq, posfo - dpos, posfo + dpos + 1);//(ymod entorno al punto "fo")
         double yminfo = min(yfo_bw);
-        Log.e("BandaXmetal","alej: [fmin, S11] = ["+freq[posfo]+", "+yminfo+"]");
-        if (yminfo<=S11maxdB){
-            Log.e("BandaXmetal","alej: Resultado 3: Cumple Spec [fmin, S11] = ["+freq[posfo]+", "+yminfo+"]");
+        Log.e("BandaXmetal", "alej: BW Curva Ok [fini, fend]= [" + freq_bw[0] + ", " + freq_bw[freq_bw.length-1] + "]");
+        if (yminfo <= S11maxdB) {
+            Log.e("BandaXmetal", "alej: Resultado 3: Cumple Spec [fmin, S11] = [" + freq[posfo] + ", " + yminfo + "]");
             return 3;
-        }else{
+        } else {
             positionValor minLocyofo = min_max(yfo_bw, "min");
-            if (!(minLocyofo==null)){
-                double kk=min(minLocyofo.valor);
+            if (!(minLocyofo == null)) {
+                double kk = min(minLocyofo.valor);
                 int kk_pos = indexOf(minLocyofo.valor, kk, 0);
-                Log.e("BandaXmetal","alej: Resultado -3: Cumple Spec Baja Atenuación  [fmin, S11] = ["+freq_bw[kk_pos]+", "+yfo_bw[kk_pos]+"]");
+                Log.e("BandaXmetal", "alej: Resultado -3: Cumple Spec Baja Atenuación  [fmin, S11] = [" + freq_bw[(int)minLocyofo.idx[kk_pos]] + ", " + yfo_bw[kk_pos] + "]");
                 return -3; //existe un pico en fo, pero con poca atenuación
             }
         }
 
         //Comprobar si existe minimo de 2 a fo GHz
         double[] y1 = ArrayUtils.subarray(ymod, 0, posfo - dpos);
+        double[] f1 = ArrayUtils.subarray(freq, 0, posfo - dpos);
         int flag1 = 0;
         double freq1 = 0;
         positionValor minLoc1 = min_max(y1, "min");
         if (!(minLoc1 == null)) {
-            double y1min = min(minLoc1.valor);
-            int ymin1_pos = indexOf(minLoc1.valor, y1min, 0);
-            freq1 = freq[0] + df * ymin1_pos;//freq del minimo1
-            flag1 = -1;
-            if (y1min <= S11maxdB) {
+            int cnt5dB= contadorCondicion(minLoc1.valor,S11maxdB/2);
+            int cnt2dB= contadorCondicion(minLoc1.valor,-3);
+            if (cnt2dB>0 && cnt5dB==0) { //No consideramos picos de menor valor de -3dB
+                flag1 = -1;
+            }
+            if (cnt5dB>0) {
+                double y1min = min(minLoc1.valor);
+                int ymin1_pos = indexOf(minLoc1.valor, y1min, 0);
+                freq1 = f1[(int)minLoc1.idx[ymin1_pos]] ;//freq del minimo1
                 flag1 = 1;
             }
+            Log.e("BandaXmetal", "alej: [freq1, cnt5dB] = ["+freq1+", "+cnt5dB+"]");
         }
 
         //Comprobar si existe minimo entre fo y 18GHz
         double[] y2 = ArrayUtils.subarray(ymod, posfo + dpos, ymod.length);
+        double[] f2 = ArrayUtils.subarray(freq, posfo + dpos, ymod.length);
         int flag2 = 0;
+        double freq2 = 0;
         positionValor minLoc2 = min_max(y2, "min");
         if (!(minLoc2 == null)) {
-            double y1min = min(minLoc2.valor);
-            flag2 = -1;
-            if (y1min <= S11maxdB) {
+            int cnt5dB= contadorCondicion(minLoc2.valor,S11maxdB/2);
+            int cnt2dB= contadorCondicion(minLoc2.valor,-3);
+            if (cnt2dB>0 && cnt5dB==0) { //No consideramos picos de menor valor de -3dB
+                flag2 = -1;
+            }
+            if (cnt5dB>0) { //si existe algún pico cuya atenuación sea <-5dB, se considera que existe pico
+                double y2min = min(minLoc2.valor);
+                int ymin2_pos = indexOf(minLoc2.valor, y2min, 0);
+                freq2 = f2[(int)minLoc2.idx[ymin2_pos]] ;//freq del minimo1
                 flag2 = 1;
             }
+            Log.e("BandaXmetal", "alej: [freq2, cnt5dB] = ["+freq2+", "+cnt5dB+"]");
         }
 
-        //Curva no correcta, hay 2 minimos: por delante y por detrás de fo
-        if (flag1 == 1 && flag2 == 1) {
-            Log.e("BandaXmetal","alej: Resultado 0: Hay 2 mínimos!");
-            return 0;
-        }
 
         //Pico entre 2 y fo GHz:
-        if (Math.abs((flag1)) == 1) {
+        if (Math.abs(flag1) == 1) { //Pico con al menos atenuación <-5dB
             if (freq1 < 8) {
-                Log.e("BandaXmetal","alej: Resultado 1: Parar de Pintar");
+                Log.e("BandaXmetal", "alej: Resultado 1: Parar de Pintar: fmin = "+freq1);
                 resultado = 1;
             } else {
-                Log.e("BandaXmetal","alej: Resultado 2: No pintar Mucho");
+                Log.e("BandaXmetal", "alej: Resultado 2: No pintar Mucho: fmin = "+freq1);
                 resultado = 2;
             }
             return resultado * flag1;//el signo distingue si tenemos atenuación >-10dB
         }
 
         //Pico entre fo y 18 GHz: No seguir pintando!
-        if (Math.abs((flag2)) == 1) {
-            Log.e("BandaXmetal","alej: Resultado 4: Pintar");
+        if (Math.abs(flag2) == 1) { //Pico con al menos atenuación <-5dB
+            Log.e("BandaXmetal", "alej: Resultado 4: Pintar flag2 = "+flag2);
             return 4 * flag2;//el signo distingue si tenemos atenuación >-10dB
         }
 
         //Si no existen ningún minimo
-        Log.e("BandaXmetal","alej: Resultado 0: No existen mínimos!");
+        Log.e("BandaXmetal", "alej: Resultado 0: No existen mínimos o tienen atenuación <-6dB!");
         return 0;
     }
 }
 
+//Util cuando queremos devolver 2 parámetros desde una función
 class positionValor {
     public double[] idx;
     public double[] valor;
