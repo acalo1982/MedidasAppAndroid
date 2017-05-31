@@ -2,34 +2,38 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
     <PreferenceCategory android:title="Información del Proyecto">
-    <EditTextPreference
-        android:defaultValue="MicromagTest"
-        android:key="nameProyecto"
-        android:selectAllOnFocus="true"
-        android:singleLine="true"
-        android:title="Nombre del Proyecto" />
-    <EditTextPreference
-        android:defaultValue="7"
-        android:key="Narea"
-        android:selectAllOnFocus="true"
-        android:singleLine="true"
-        android:title="Áreas de Medida" />
-    </PreferenceCategory>
-
-    <PreferenceCategory android:title="Esquema de Pintado">
+        <EditTextPreference
+            android:defaultValue="MicromagTest"
+            android:key="nameProyecto"
+            android:selectAllOnFocus="true"
+            android:singleLine="true"
+            android:title="Nombre del Proyecto" />
+        <EditTextPreference
+            android:defaultValue="7"
+            android:key="Narea"
+            android:selectAllOnFocus="true"
+            android:singleLine="true"
+            android:title="Áreas de Medida" />
         <ListPreference
-            android:key="esquema"
-            android:title="Esquemas"
             android:entries="@array/esquemas"
-            android:entryValues="@array/esquemavalues" />
+            android:entryValues="@array/esquemavalues"
+            android:key="esquema"
+            android:title="Esquemas de Pintado" />
         <!--android:summary="Descripción de la preferencia 3"-->
         <!--android:dialogTitle="Indicar Pais"-->
     </PreferenceCategory>
 
+
     <PreferenceCategory android:title="Calibración">
-        <Preference android:title="Background" android:key="background"/>
-        <Preference android:title="Reference" android:key="reference"/>
-        <Preference android:title="3rd Standard (optional)" android:key="plex2mm"/>
+        <Preference
+            android:key="background"
+            android:title="Background" />
+        <Preference
+            android:key="reference"
+            android:title="Reference" />
+        <Preference
+            android:key="plex2mm"
+            android:title="3rd Standard (optional)" />
         <!--android:textColor="#FF0000"--> Ver si cambia el color del texto del botón
     </PreferenceCategory>
 

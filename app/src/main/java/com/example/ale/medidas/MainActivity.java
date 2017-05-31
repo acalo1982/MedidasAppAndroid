@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.AsyncTask;
+import android.os.Environment;
 import android.preference.PreferenceManager;
 import android.support.v4.view.MenuItemCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -24,10 +25,20 @@ import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 import android.widget.Toast;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 
 import fastandroid.neoncore.collection.FaCollection;
+
+import static java.security.AccessController.getContext;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -55,8 +66,8 @@ public class MainActivity extends AppCompatActivity {
     //private int Nmed_prev = 0;//num de medidas ya realizadas en el área actual (se actualiza cuando se guarde el área por 1a vez!)
     private boolean actualizarArea = false; //sólo actualizamos las áreas cuando volvemos de la pantalla de conf.
     private double[] freq;
-    private int criterio_ico=10;//se pone el icono de criterio en modo transparente
-    private double fo=10;//nos centramos en 10GHz para probar los criterios con la plancha CAL1
+    private int criterio_ico = 10;//se pone el icono de criterio en modo transparente
+    private double fo = 10;//nos centramos en 10GHz para probar los criterios con la plancha CAL1
 
 //    @Override
 //    protected void onResume(){
@@ -193,7 +204,7 @@ public class MainActivity extends AppCompatActivity {
         double f1 = Double.parseDouble(pref.getString("freq1", "2"));
         double f2 = Double.parseDouble(pref.getString("freqEnd", "18"));
         double Npoint = Double.parseDouble(pref.getString("npoint", "201"));
-        double df = (f2 - f1) / (Npoint-1);
+        double df = (f2 - f1) / (Npoint - 1);
         double[] xlimF = new double[]{f1, f2};
         double[] ylimF = new double[]{-35, 5};
         confF = new confFreq(df, xlimF, ylimF, f1, f2, (int) Npoint);//guardamos la conf de medida por defecto
@@ -248,7 +259,8 @@ public class MainActivity extends AppCompatActivity {
             //Criterio aplicado a la curva medida
             double[] Rmod = MathV.absDB_wV(Rcoef);
             criterioCurva criterio = new criterioCurva(freq, Rmod);
-            criterio_ico = Math.abs(criterio.BandaXmetal(fo));//criterio aplicado a 10GHz
+            //criterio_ico = Math.abs(criterio.BandaXmetal(fo));//criterio aplicado a 10GHz
+            criterio_ico = (criterio.BandaXmetal(fo));//criterio aplicado a 10GHz
 
             setContMedItem();//set contador de medidas en la actionbar
         }
@@ -256,7 +268,7 @@ public class MainActivity extends AppCompatActivity {
             Rlist.remove(Nmeas - 1);//eliminamos el único elemento
             Rcoef = null;
             Rmedia = null;
-            criterio_ico=10;//icono de criterio transparente
+            criterio_ico = 10;//icono de criterio transparente
             graph.removeAllSeries();//borramos los ejes
             setContMedItem();//set contador de medidas en la actionbar
         }
@@ -378,10 +390,13 @@ public class MainActivity extends AppCompatActivity {
 
         //Criterio aplicado a la curva medida
         double[] Rmod = MathV.absDB_wV(Rcoef);
-        Log.e("lecturaS11", "alej: freq[0] = " + freq[0]);
         criterioCurva criterio = new criterioCurva(freq, Rmod);
-        criterio_ico = Math.abs(criterio.BandaXmetal(fo));//criterio aplicado a 10GHz
-
+        //criterio_ico = Math.abs(criterio.BandaXmetal(fo));//criterio aplicado a 10GHz
+        if (pref.getString("esquema", "").equals("BandaXMetal")) {
+            criterio_ico = (criterio.BandaXmetal(fo));//criterio aplicado a 10GHz
+        } else {
+            Toast.makeText(getApplicationContext(), "¡No se ha seleccionado el Esquema de Pintado!", Toast.LENGTH_SHORT).show();
+        }
 
         //Grafica: medida filtrada
         graph.removeAllSeries();//borramos las series de los ejes
@@ -404,6 +419,40 @@ public class MainActivity extends AppCompatActivity {
     public void onDestroy() {
         super.onDestroy();
         onBackPressed();
+    }
+
+    //Copia el archivo XML de preferencias al almacenamiento  externo (extraible o no) público y accesible a todos
+    private boolean saveSharedPreferencesToFile(String src, String dst) {
+        boolean res = false;
+        try {
+            InputStream in = new FileInputStream(src);
+            OutputStream out = new FileOutputStream(dst);
+
+            // Copy the bits from instream to outstream
+            byte[] buf = new byte[1024];
+            int len;
+            while ((len = in.read(buf)) > 0) {
+                out.write(buf, 0, len);
+            }
+            in.close();
+            out.close();
+            res = true;
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return res;
+    }
+
+
+    //Comprobar si está accesible (montado) el almacenamiento externo
+    public boolean isExternalStorageWritable() {
+        String state = Environment.getExternalStorageState();
+        if (Environment.MEDIA_MOUNTED.equals(state)) {
+            return true;
+        }
+        return false;
     }
 
     @Override
@@ -440,6 +489,23 @@ public class MainActivity extends AppCompatActivity {
             editor.commit();
             Toast.makeText(getApplicationContext(), "Área Guardada: " + NumAreas[NumAreaSelec] + "!", Toast.LENGTH_SHORT).show();
             conectado = 1;
+
+            //Copiamos el archivo XML al almacenamiento externo tb para que sea accesible para pasarlos al ordenador
+            if (isExternalStorageWritable()) {
+                File fdExt = new File(Environment.getExternalStorageDirectory(), "0AaMedidas");//creamos o accedemos al directorio medidas
+                //File fdInt = getApplicationContext().getCacheDir();//directorio interno donde se guarda los xml de las preferencias
+                File fdInt = new File(getApplicationInfo().dataDir, "shared_prefs");
+                if (fdExt.exists() == false) { //creamos el directorio, si no existe!
+                    fdExt.mkdir();
+                }
+                String dst = fdExt.getAbsolutePath() + File.separator + nmfile + ".xml";
+                String src = fdInt.getAbsolutePath() + File.separator + nmfile + ".xml";
+                if (saveSharedPreferencesToFile(src, dst) == false) {
+                    Toast.makeText(getApplicationContext(), "Error de Escritura", Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                Toast.makeText(getApplicationContext(), "Almacenamiento Externo No Disponible", Toast.LENGTH_SHORT).show();
+            }
         }
 
     }
@@ -479,29 +545,48 @@ public class MainActivity extends AppCompatActivity {
     }
 
     //Actualiza el icono del criterio para la última medida
-    public void actualizaCriterio(Menu menu){
+    public void actualizaCriterio(Menu menu) {
         MenuItem item2 = menu.findItem(R.id.criterio);
-        switch (criterio_ico){
+        switch (criterio_ico) {
             case 1: //No necesita ser pintado más
                 item2.setIcon(android.R.drawable.presence_busy);
+                break;
+            case -1: //No necesita ser pintado más
+                item2.setIcon(android.R.drawable.presence_busy);
+                Toast.makeText(getApplicationContext(), "Baja Atenuación!", Toast.LENGTH_SHORT).show();
                 break;
             case 2: //Necesita menor espesor
                 item2.setIcon(android.R.drawable.button_onoff_indicator_on);
                 break;
+            case -2: //Necesita menor espesor
+                item2.setIcon(android.R.drawable.button_onoff_indicator_on);
+                Toast.makeText(getApplicationContext(), "Baja Atenuación!", Toast.LENGTH_SHORT).show();
+                break;
             case 3: //Espesor adecuado
                 item2.setIcon(android.R.drawable.btn_star_big_on);
+                break;
+            case -3: //Espesor adecuado
+                item2.setIcon(android.R.drawable.btn_star_big_on);
+                Toast.makeText(getApplicationContext(), "Baja Atenuación!", Toast.LENGTH_SHORT).show();
+                Log.e("actualizarCriterio", "alej: -3 Baja Att.");
                 break;
             case 4: //Necesita mayor espesor
                 item2.setIcon(android.R.drawable.ic_input_add);
                 break;
+            case -4: //Necesita mayor espesor
+                item2.setIcon(android.R.drawable.ic_input_add);
+                Toast.makeText(getApplicationContext(), "Baja Atenuación!", Toast.LENGTH_SHORT).show();
+                break;
             case 5: //Curva con forma erronea: p.e medir el background o metal o que aparezcan multiples picos de absorción <-10dB (para el monobanda)
                 item2.setIcon(android.R.drawable.presence_offline);
+                Toast.makeText(getApplicationContext(), "Curva Errónea!", Toast.LENGTH_SHORT).show();
                 break;
             default: //La curva S11 no es correcta (no tiene mínimos o tiene un formato que no es el esperado)
                 item2.setIcon(android.R.drawable.screen_background_light_transparent);
                 break;
         }
     }
+
     //Actualiza la actionbar tras una llamada a "invalidateOptionsMenu()" (aprovecharemos para cambiar el título del item de la actionbar q usaremos para mostrar el num. medidas actual
     @Override
     public boolean onPrepareOptionsMenu(Menu menu) {
@@ -586,13 +671,14 @@ public class MainActivity extends AppCompatActivity {
                         //Criterio aplicado a la curva medida
                         double[] Rmod = MathV.absDB_wV(Rcoef);
                         criterioCurva criterio = new criterioCurva(freq, Rmod);
-                        criterio_ico = Math.abs(criterio.BandaXmetal(fo));//criterio aplicado a 10GHz
+                        //criterio_ico = Math.abs(criterio.BandaXmetal(fo));//criterio aplicado a fo
+                        criterio_ico = (criterio.BandaXmetal(fo));//criterio aplicado a fo
                         actualizaCriterio(m);
 
                         Toast.makeText(getApplicationContext(), "Area cargada:  " + NumAreas[i] + "!", Toast.LENGTH_SHORT).show();
                     } else { //Si no existen medidas, es q ese área es nueva y no se ha guardado nada previamente
                         Toast.makeText(getApplicationContext(), "Area nueva!", Toast.LENGTH_SHORT).show();
-                        criterio_ico=10;
+                        criterio_ico = 10;
                         actualizaCriterio(m);
                     }
                     //Actualizamos el num de medidas mostrados en la ActionBar: ya sea a "0" (si es nueva área) o Nmed_anterior (si el área ya fue guardada)
