@@ -14,6 +14,9 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.content.Intent;
 
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.drive.Drive;
 import com.jjoe64.graphview.GraphView;
 import com.jjoe64.graphview.series.*;
 
@@ -40,7 +43,7 @@ import fastandroid.neoncore.collection.FaCollection;
 
 import static java.security.AccessController.getContext;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements GoogleApiClient.OnConnectionFailedListener{
 
     private TCPClient mTcpClient; //objeto que recivirá y enviará msg al servidor!
     private TCPClientv2 mTcpClientv2;
@@ -68,6 +71,7 @@ public class MainActivity extends AppCompatActivity {
     private double[] freq;
     private int criterio_ico = 10;//se pone el icono de criterio en modo transparente
     private double fo = 10;//nos centramos en 10GHz para probar los criterios con la plancha CAL1
+    private GoogleApiClient apiClient;//cliente para manejar la conexión con Google Drive
 
 //    @Override
 //    protected void onResume(){
@@ -213,6 +217,15 @@ public class MainActivity extends AppCompatActivity {
             freq[i] = f1 + df * i;
             //Log.e("MainAct.OnCreate","alej: freq["+i+"] = "+freq[i]);
         }
+
+        //Cliente que maneja la conexión a Google Drive
+        apiClient = new GoogleApiClient.Builder(this).enableAutoManage(this, this).addApi(Drive.API).addScope(Drive.SCOPE_FILE).build();
+    }
+
+    @Override
+    public void onConnectionFailed(ConnectionResult connectionResult) {
+        Toast.makeText(this, "Error de conexion!", Toast.LENGTH_SHORT).show();
+        Log.e("GDrive API", "OnConnectionFailed: " + connectionResult);
     }
 
     //Este método es llamado cuando damos al botón HW atrás, desde la actividad de configuración (objetivo: actualizar el spinner con las áreas disponibles de la Actionbar!)
