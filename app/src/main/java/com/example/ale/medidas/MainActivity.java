@@ -17,6 +17,7 @@ import android.content.Intent;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.drive.Drive;
+import com.google.android.gms.drive.DriveContents;
 import com.jjoe64.graphview.GraphView;
 import com.jjoe64.graphview.series.*;
 
@@ -36,6 +37,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -218,15 +221,17 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
             //Log.e("MainAct.OnCreate","alej: freq["+i+"] = "+freq[i]);
         }
 
-        //Cliente que maneja la conexión a Google Drive
+        //Cliente que maneja la conexión a Google Drive (asumimos que habrá una carpeta llamada "MedidasAPP")
         apiClient = new GoogleApiClient.Builder(this).enableAutoManage(this, this).addApi(Drive.API).addScope(Drive.SCOPE_FILE).build();
     }
 
+    //GDrive: Interface que maneja un error en la conexión al servicio de GDrive
     @Override
     public void onConnectionFailed(ConnectionResult connectionResult) {
         Toast.makeText(this, "Error de conexion!", Toast.LENGTH_SHORT).show();
         Log.e("GDrive API", "OnConnectionFailed: " + connectionResult);
     }
+
 
     //Este método es llamado cuando damos al botón HW atrás, desde la actividad de configuración (objetivo: actualizar el spinner con las áreas disponibles de la Actionbar!)
     @Override
@@ -778,6 +783,42 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
             } else { //Varios comandos a las vez
                 mTcpClient.run(message);
             }
+
+            return null;
+        }
+
+        @Override
+        protected void onProgressUpdate(String... values) {
+            super.onProgressUpdate(values);
+            String msg = values[0];
+            if (!(msg.equals("Error"))) {
+                lecturaS11(msg);//Tras recibir un msg, llamamos a la función que lo procesa
+                //mTcpClient.stopClient();
+                conectado = 1;
+            } else {
+                Toast.makeText(getApplicationContext(), "Error de red o No conectado a la Wfi del VNA", Toast.LENGTH_SHORT).show();
+                conectado = 0; //boton en gris pq ha habido un fallo
+                invalidateOptionsMenu();//actualiza la actionBar para dibujar el boton en gris
+            }
+        }
+    }
+
+
+    //Cliente v1: Se abre/cierra un socket en el envío de cada comando (si el comando es de request, se espera a la respuesta del VNA)
+    public class createGDriveFileTask extends AsyncTask<String, String, GDriveClient> {
+        @Override
+        protected GDriveClient doInBackground(String... listaString) {
+            String StrFileID=listaString[0];
+
+            GDriveClient gdrive= new GDriveClient(apiClient,StrFileID,new GDriveClient.OnMessageReceived(){
+                @Override
+                //here the messageReceived method is implemented
+                public void messageReceived(String message) {
+                    //this method calls the onProgressUpdate
+                    publishProgress(message);
+                }
+            });
+
 
             return null;
         }
