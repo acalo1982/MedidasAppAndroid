@@ -75,7 +75,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
     private int criterio_ico = 10;//se pone el icono de criterio en modo transparente
     private double fo = 10;//nos centramos en 10GHz para probar los criterios con la plancha CAL1
     private GoogleApiClient apiClient;//cliente para manejar la conexión con Google Drive
-
+    private String MedidasAppFolderID="DriveId:0BxBzpgvBYNJ1ZTJjeDlyNlVWUGs";//FolderID del directorio "MedidaApp" que hay en la cuenta "micromag@micromag.es"
 //    @Override
 //    protected void onResume(){
 //        super.onResume();  // Always call the superclass method first
@@ -778,6 +778,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
                     publishProgress(message);
                 }
             }, IPvna, Portvna);
+
             if (message.length == 1) { //Enviamos 1 comando
                 mTcpClient.run(message[0]); //abrimos el socket de comunicacion con el servidor
             } else { //Varios comandos a las vez
@@ -808,16 +809,30 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
     public class createGDriveFileTask extends AsyncTask<String, String, GDriveClient> {
         @Override
         protected GDriveClient doInBackground(String... listaString) {
-            String StrFileID=listaString[0];
+            String strFolderID=listaString[0];//directorio q contiene a los archivos XML de medida
+            String strFileID=listaString[1];//ID del archivo de medida concreto que queremos borrar
+            String operacion=listaString[3];//Tipo de operación: Crear y Copiar archivo a GDrive o Borrar archivo de GDrive
 
-            GDriveClient gdrive= new GDriveClient(apiClient,StrFileID,new GDriveClient.OnMessageReceived(){
+            //Cliente GDrive para conexión a la cuenta
+            GDriveClient gdrive= new GDriveClient(apiClient,strFolderID,strFileID,new GDriveClient.OnMessageReceived(){
                 @Override
                 //here the messageReceived method is implemented
-                public void messageReceived(String message) {
+                public void messageReceived(String message) { //Devolverá el FileID del nuevo archivo creado
                     //this method calls the onProgressUpdate
                     publishProgress(message);
                 }
             });
+
+            //Operación a realizar: Copiar o Borrar archivo
+            //Crear + Copiar nuevo archivo de medidas (devuelve el string FileID para guardarlo dentro del fichero XML correspondiente)
+            if (operacion.equals("copiar")){
+
+            }
+
+            //Borrar archivo a partir de su FileID
+            if (operacion.equals("borrar")){
+
+            }
 
 
             return null;

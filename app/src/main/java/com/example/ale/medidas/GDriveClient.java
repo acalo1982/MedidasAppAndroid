@@ -26,15 +26,17 @@ public class GDriveClient {
 
     private GoogleApiClient apiClient;//cliente para manejar la conexión con Google Drive
     private String LOGTAG = "GDriveClient";
-    private String MedidasAppFolderID = "DriveId:0BxBzpgvBYNJ1ZTJjeDlyNlVWUGs";//folder "MedidasApp" la cuenta de Drive de "micromag@micromag.es" creado a mano
-    private String fileDriveId;
+    private String strFolderId;//folder "MedidasApp" la cuenta de Drive de "micromag@micromag.es" creado a mano
+    private String strFileId;
     private OnMessageReceived mMessageListener = null; //interfaz para devolver la comunicación a la clase que llame a ésta
+    private boolean operacionOk;
+    private String strFileIdnew;
 
-
-    public GDriveClient(GoogleApiClient client,String strFileId,OnMessageReceived listener) {
+    public GDriveClient(GoogleApiClient client,String strFolderId,String strFileId,OnMessageReceived listener) {
         apiClient = client;
         mMessageListener = listener; //servirá para una vez acabada la tarea de esta clase, notificar a la clase llamante
-        fileDriveId=strFileId;
+        this.strFileId=strFileId;//ID del archivo de sobre el que queremos operar (copiar o borrar a/de GDrive)
+        this.strFolderId=strFolderId;//Directorio donde se encuentran esos archivos
     }
 
 
@@ -54,19 +56,25 @@ public class GDriveClient {
                             //Opción 1: Directorio raíz
                             //DriveFolder folder = Drive.DriveApi.getRootFolder(apiClient);
                             //Opción 2: Otra carpeta distinta al directorio raiz
-                            DriveFolder folder = DriveId.decodeFromString(MedidasAppFolderID).asDriveFolder();
+                            DriveFolder folder = DriveId.decodeFromString(strFolderId).asDriveFolder();
                             folder.createFile(apiClient, changeSet, result.getDriveContents())
                                     .setResultCallback(new ResultCallback<DriveFolder.DriveFileResult>() {
                                         @Override
                                         public void onResult(DriveFolder.DriveFileResult result) {
                                             if (result.getStatus().isSuccess()) {
+                                                operacionOk=true;
+                                                strFileIdnew=result.getDriveFile().getDriveId().toString();
                                                 Log.i(LOGTAG, "Fichero creado con ID = " + result.getDriveFile().getDriveId());
                                             } else {
+                                                operacionOk=false;
+                                                strFileIdnew="";
                                                 Log.e(LOGTAG, "Error al crear el fichero");
                                             }
                                         }
                                     });
                         } else {
+                            operacionOk=false;
+                            strFileIdnew="";
                             Log.e(LOGTAG, "Error al crear DriveContents");
                         }
                     }
@@ -88,7 +96,7 @@ public class GDriveClient {
     //GDrive: Lo usamos para borrar los archivos de medida: Tendríamos que guardar el FolderID dentro del XML junto a las medidas, para poder borrarlo
     public void deleteFile() {
         //DriveFile file = fileDriveId.asDriveFile();
-        DriveFile file = DriveId.decodeFromString(fileDriveId).asDriveFile();//recuperamos el ID a partir del String
+        DriveFile file = DriveId.decodeFromString(strFileId).asDriveFile();//recuperamos el ID a partir del String
 
         //Opción 1: Enviar a la papelera
         file.trash(apiClient).setResultCallback(new ResultCallback<Status>() {
