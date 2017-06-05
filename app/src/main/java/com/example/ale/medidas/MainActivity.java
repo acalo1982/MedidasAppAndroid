@@ -16,8 +16,11 @@ import android.content.Intent;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.drive.Drive;
 import com.google.android.gms.drive.DriveContents;
+import com.google.android.gms.drive.DriveFolder;
+import com.google.android.gms.drive.MetadataChangeSet;
 import com.jjoe64.graphview.GraphView;
 import com.jjoe64.graphview.series.*;
 
@@ -46,7 +49,7 @@ import fastandroid.neoncore.collection.FaCollection;
 
 import static java.security.AccessController.getContext;
 
-public class MainActivity extends AppCompatActivity implements GoogleApiClient.OnConnectionFailedListener{
+public class MainActivity extends AppCompatActivity implements GoogleApiClient.OnConnectionFailedListener {
 
     private TCPClient mTcpClient; //objeto que recivirá y enviará msg al servidor!
     private TCPClientv2 mTcpClientv2;
@@ -75,7 +78,9 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
     private int criterio_ico = 10;//se pone el icono de criterio en modo transparente
     private double fo = 10;//nos centramos en 10GHz para probar los criterios con la plancha CAL1
     private GoogleApiClient apiClient;//cliente para manejar la conexión con Google Drive
-    private String MedidasAppFolderID="DriveId:0BxBzpgvBYNJ1ZTJjeDlyNlVWUGs";//FolderID del directorio "MedidaApp" que hay en la cuenta "micromag@micromag.es"
+    //private String MedidasAppFolderID = "DriveId:0BxBzpgvBYNJ1ZTJjeDlyNlVWUGs";//FolderID del directorio "MedidaApp" que hay en la cuenta "micromag@micromag.es"
+    private String MedidasAppFolderID = "DriveId:CAASABjkOyDMyuu7iFcoAQ==";//FolderID del directorio "MedidaApp" que hay en la cuenta "micromag@micromag.es"
+
 //    @Override
 //    protected void onResume(){
 //        super.onResume();  // Always call the superclass method first
@@ -156,6 +161,13 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
             public void onClick(View view) {
                 //lecturaS11(null);//debug en Modo Offline
                 new connectTask().execute(":CALC:DATA:SDAT?");//debug en Modo Online
+                //Debug: Conexión a GDrive y Crear carpeta en el directorio Raiz
+//                new Thread() {
+//                    @Override
+//                    public void run() {
+//                        GDFolderRoot();
+//                    }
+//                }.start();
             }
         });
 
@@ -225,11 +237,42 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
         apiClient = new GoogleApiClient.Builder(this).enableAutoManage(this, this).addApi(Drive.API).addScope(Drive.SCOPE_FILE).build();
     }
 
+
+    @Override
+    public void onStart(){
+        super.onStart();
+        apiClient.connect();
+
+    }
+
+    @Override
+    public void onStop(){
+        super.onStop();
+        apiClient.disconnect();
+    }
+
+    //GDrive: (Debug) Test Crear Folder en Directorio Raiz
+    public void GDFolderRoot(){
+        DriveFolder folder = Drive.DriveApi.getRootFolder(apiClient);
+        Log.i("GDFolderRoot", "alej: DriveFolder = " + folder);
+        MetadataChangeSet changeSet = new MetadataChangeSet.Builder().setTitle("0AaMedidasApp").build();
+        folder.createFolder(apiClient, changeSet).setResultCallback(
+                new ResultCallback<DriveFolder.DriveFolderResult>() {
+                    @Override
+                    public void onResult(DriveFolder.DriveFolderResult result) {
+                        if (result.getStatus().isSuccess())
+                            Log.i("GDFolderRoot", "alej: Carpeta creada con ID = " + result.getDriveFolder().getDriveId());
+                        else
+                            Log.e("GDFolderRoot", "alej: Error al crear carpeta");
+                    }
+                });
+    }
+
     //GDrive: Interface que maneja un error en la conexión al servicio de GDrive
     @Override
     public void onConnectionFailed(ConnectionResult connectionResult) {
         Toast.makeText(this, "Error de conexion!", Toast.LENGTH_SHORT).show();
-        Log.e("GDrive API", "OnConnectionFailed: " + connectionResult);
+        Log.e("GDrive API", "alej: OnConnectionFailed: " + connectionResult);
     }
 
 
@@ -473,6 +516,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
         return false;
     }
 
+    //Guardar Medidas en archivo XML y en el almacenamiento público externo
     @Override
     public void onBackPressed() {
 
@@ -508,22 +552,27 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
             Toast.makeText(getApplicationContext(), "Área Guardada: " + NumAreas[NumAreaSelec] + "!", Toast.LENGTH_SHORT).show();
             conectado = 1;
 
-            //Copiamos el archivo XML al almacenamiento externo tb para que sea accesible para pasarlos al ordenador
+            //Copiamos el archivo XML al almacenamiento publico (interno) tb para que sea accesible para pasarlos al ordenador
+            File fdExt = new File(Environment.getExternalStorageDirectory(), "0AaMedidas");//creamos o accedemos al directorio medidas
+            //File fdInt = getApplicationContext().getCacheDir();//directorio interno donde se guarda los xml de las preferencias
+            File fdInt = new File(getApplicationInfo().dataDir, "shared_prefs");
+            if (fdExt.exists() == false) { //creamos el directorio, si no existe!
+                fdExt.mkdir();
+            }
+            String dst = fdExt.getAbsolutePath() + File.separator + nmfile + ".xml";
+            String src = fdInt.getAbsolutePath() + File.separator + nmfile + ".xml";
             if (isExternalStorageWritable()) {
-                File fdExt = new File(Environment.getExternalStorageDirectory(), "0AaMedidas");//creamos o accedemos al directorio medidas
-                //File fdInt = getApplicationContext().getCacheDir();//directorio interno donde se guarda los xml de las preferencias
-                File fdInt = new File(getApplicationInfo().dataDir, "shared_prefs");
-                if (fdExt.exists() == false) { //creamos el directorio, si no existe!
-                    fdExt.mkdir();
-                }
-                String dst = fdExt.getAbsolutePath() + File.separator + nmfile + ".xml";
-                String src = fdInt.getAbsolutePath() + File.separator + nmfile + ".xml";
                 if (saveSharedPreferencesToFile(src, dst) == false) {
                     Toast.makeText(getApplicationContext(), "Error de Escritura", Toast.LENGTH_SHORT).show();
                 }
             } else {
                 Toast.makeText(getApplicationContext(), "Almacenamiento Externo No Disponible", Toast.LENGTH_SHORT).show();
             }
+
+            //Copiar Archivo a GDrive
+            //GDFolderRoot();//Testeo: Crea una carpeta en el Raiz y obtiene el FolderID
+            String[] datos = new String[]{src, "Copiar", MedidasAppFolderID, ""};//filename del XML a copiar!
+            new createGDriveFileTask().execute(datos);//debug en Modo Online
         }
 
     }
@@ -754,6 +803,21 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
         }
     }
 
+    //Guarda FileID de GDrive en el archivos XML de area guardado previamente
+    public void writeDriveFileID2Preferences(String newFileID,String src_file){
+        Log.e("MainAct.WrteID2Pref", "[SourceFile, FileID] = ["+src_file+", "+newFileID+"]");
+
+        String[] tk = src_file.split("/");//Separa el nombre del path del fichero
+        String nmfile=tk[tk.length-1];
+        //String nmfile = pref.getString("nameProyecto", "") + ".Area." + NumAreas[NumAreaSelec];
+        SharedPreferences prefArea = getSharedPreferences(nmfile, Context.MODE_PRIVATE);
+
+        //Escritura de las medidas,  media y otros campos de control
+        SharedPreferences.Editor editor = prefArea.edit();
+        editor.putString("GoogleDriveFileID",newFileID);//ID del fichero creado
+        editor.putString("GoogleDriveFolderID",MedidasAppFolderID);//ID del directorio donde se ha creado el fichero
+        editor.commit();
+    }
 
     //Cliente v1: Se abre/cierra un socket en el envío de cada comando (si el comando es de request, se espera a la respuesta del VNA)
     public class connectTask extends AsyncTask<String, String, TCPClient> {
@@ -807,33 +871,33 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
 
     //Cliente v1: Se abre/cierra un socket en el envío de cada comando (si el comando es de request, se espera a la respuesta del VNA)
     public class createGDriveFileTask extends AsyncTask<String, String, GDriveClient> {
+        private String resultado;
+        private String newFileID;
+        private String fn;//nombre del archivo XML sobre el que realizamos la operación
+
         @Override
         protected GDriveClient doInBackground(String... listaString) {
-            String strFolderID=listaString[0];//directorio q contiene a los archivos XML de medida
-            String strFileID=listaString[1];//ID del archivo de medida concreto que queremos borrar
-            String operacion=listaString[3];//Tipo de operación: Crear y Copiar archivo a GDrive o Borrar archivo de GDrive
+            fn = listaString[0];//archivo XML que queremos copiar/borrar a GDrive
+            String operacion = listaString[1];//Tipo de operación: Crear y Copiar archivo a GDrive o Borrar archivo de GDrive
+            String strFolderID = listaString[2];//directorio q contiene a los archivos XML de medida
+            String strFileID = listaString[3];//ID del archivo de medida concreto que queremos borrar
 
             //Cliente GDrive para conexión a la cuenta
-            GDriveClient gdrive= new GDriveClient(apiClient,strFolderID,strFileID,new GDriveClient.OnMessageReceived(){
+            GDriveClient gdrive = new GDriveClient(apiClient,fn, strFolderID, strFileID, new GDriveClient.OnMessageReceived() {
                 @Override
                 //here the messageReceived method is implemented
-                public void messageReceived(String message) { //Devolverá el FileID del nuevo archivo creado
+                public void messageReceived(String[] message) { //Devolverá el FileID del nuevo archivo creado
                     //this method calls the onProgressUpdate
-                    publishProgress(message);
+                    resultado = message[0];//comproar operación correcta o no
+                    newFileID = message[1];//ID del nuevo archivo creado (sólo para operación Copiar)
+                    Log.e("messageReceived","alej: [resultado, newFileID] = ["+resultado+", "+newFileID+"]");
+                    publishProgress(resultado);
                 }
             });
 
-            //Operación a realizar: Copiar o Borrar archivo
-            //Crear + Copiar nuevo archivo de medidas (devuelve el string FileID para guardarlo dentro del fichero XML correspondiente)
-            if (operacion.equals("copiar")){
-
-            }
-
-            //Borrar archivo a partir de su FileID
-            if (operacion.equals("borrar")){
-
-            }
-
+            //LLamamos al método "run()" del objeto "gdrive" que sabrá que hacer en cada operación
+            Log.e("WrteID2Pref", "alej: [XMLfile, Operacion, GDFolderID] = ["+listaString[0]+", "+listaString[1]+", "+listaString[2]+"]");
+            gdrive.run(operacion);
 
             return null;
         }
@@ -843,13 +907,9 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
             super.onProgressUpdate(values);
             String msg = values[0];
             if (!(msg.equals("Error"))) {
-                lecturaS11(msg);//Tras recibir un msg, llamamos a la función que lo procesa
-                //mTcpClient.stopClient();
-                conectado = 1;
+                writeDriveFileID2Preferences(newFileID,fn);
             } else {
-                Toast.makeText(getApplicationContext(), "Error de red o No conectado a la Wfi del VNA", Toast.LENGTH_SHORT).show();
-                conectado = 0; //boton en gris pq ha habido un fallo
-                invalidateOptionsMenu();//actualiza la actionBar para dibujar el boton en gris
+                Toast.makeText(getApplicationContext(), "Error de comunicación con GDrive!", Toast.LENGTH_SHORT).show();
             }
         }
     }
