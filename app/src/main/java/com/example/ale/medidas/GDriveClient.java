@@ -30,18 +30,18 @@ public class GDriveClient {
 
     private GoogleApiClient apiClient;//cliente para manejar la conexión con Google Drive
     private String strFolderId;//folder "MedidasApp" la cuenta de Drive de "micromag@micromag.es" creado a mano
-    private String strFileId;
+    private String strFileId;//Si estamos re-grabando un archivo de medida, usamos este FileID para borrar el anterior
     private OnMessageReceived mMessageListener = null; //interfaz para devolver la comunicación a la clase que llame a ésta
-    private String operacionOk="Error";
-    private String strFileIdnew="";
+    private String operacionOk = "Error";
+    private String strFileIdnew = "";
     private String src_file;
 
-    public GDriveClient(GoogleApiClient client, String src_file,String strFolderId, String strFileId, OnMessageReceived listener) {
+    public GDriveClient(GoogleApiClient client, String src_file, String strFolderId, String strFileId, OnMessageReceived listener) {
         apiClient = client;
         mMessageListener = listener; //servirá para una vez acabada la tarea de esta clase, notificar a la clase llamante
-        this.strFileId = strFileId;//ID del archivo de sobre el que queremos operar (copiar o borrar a/de GDrive)
+        this.strFileId = strFileId;//ID del archivo de sobre el que queremos operar (copiar o borrar a/de GDrive): si ya existe de antes en GDrive
         this.strFolderId = strFolderId;//Directorio donde se encuentran esos archivos
-        this.src_file=src_file;//Path al archivo XML guardado en "share-prefs" que se copiará en GDrive
+        this.src_file = src_file;//Path al archivo XML guardado en "share-prefs" que se copiará en GDrive
     }
 
 
@@ -49,8 +49,7 @@ public class GDriveClient {
     public void createFile(final String src) {
         final String LOGTAG = "GDClient.createFile";
         String[] tk = src.split("/");//Separa el nombre del path del fichero
-        final String filename=tk[tk.length-1];
-        Log.e("GDriveClient.createFile","alej: TitleFile: "+filename);
+        final String filename = tk[tk.length - 1];
         Drive.DriveApi.newDriveContents(apiClient)
                 .setResultCallback(new ResultCallback<DriveApi.DriveContentsResult>() {
                     @Override
@@ -72,29 +71,38 @@ public class GDriveClient {
                                         @Override
                                         public void onResult(DriveFolder.DriveFileResult result) {
                                             if (result.getStatus().isSuccess()) {
-                                                String FileIdnew = result.getDriveFile().getDriveId().toString();
-                                                chk_operacion("Ok",FileIdnew);
-                                                Log.e(LOGTAG, "Operacion: "+operacionOk+ " Fichero creado con ID = " + FileIdnew);
+                                                strFileIdnew = result.getDriveFile().getDriveId().toString();
+                                                operacionOk = "Ok";
+                                                Log.e(LOGTAG, "Operacion: " + operacionOk + " Fichero creado con ID = " + strFileIdnew);
+                                                //Borramos el archivo antiguo, si existiese
+                                                deleteFile(strFileId);
                                             } else {
-                                                chk_operacion("Error","");
+                                                operacionOk = "Error";
                                                 Log.e(LOGTAG, "Error al crear el fichero");
+                                            }
+                                            //Devolver el control al programa ppal con el estado de la operación y el nuevo FileID (si se ha creado un archivo)
+                                            if (mMessageListener != null) {
+                                                Log.e(LOGTAG, "alej: Operacion: " + operacionOk);
+                                                String[] msg = new String[]{operacionOk, strFileIdnew};
+                                                mMessageListener.messageReceived(msg);
                                             }
                                         }
                                     });
                         } else {
-                            chk_operacion("Error","");
+                            operacionOk = "Error";
                             strFileIdnew = "";
                             Log.e(LOGTAG, "Error al crear DriveContents");
+                            //Devolver el control al programa ppal con el estado de la operación y el nuevo FileID (si se ha creado un archivo)
+                            if (mMessageListener != null) {
+                                Log.e(LOGTAG, "alej: Operacion: " + operacionOk);
+                                String[] msg = new String[]{operacionOk, strFileIdnew};
+                                mMessageListener.messageReceived(msg);
+                            }
                         }
                     }
                 });
     }
 
-    public void chk_operacion(String chk,String FileID){
-        Log.e("GDrive.chk","alej: [chk, FileId] = "+chk+", "+FileID+"]");
-        this.operacionOk=chk;
-        this.strFileIdnew=FileID;
-    }
     //GDrive: Escribe el contenido del fichero al objeto de su contenido
     private void writeSampleText(DriveContents driveContents) {
         OutputStream outputStream = driveContents.getOutputStream();
@@ -107,11 +115,11 @@ public class GDriveClient {
         }
     }
 
+    //Rellena el contenido del fichero, escribiendo en el metadato "DriveContent" del fichero
     private void saveSharedPreferencesToFile(String src, DriveContents dst) {
         try {
             InputStream in = new FileInputStream(src);//stream de entrada que apunta a la ubicación del fichero XML a copiar
             OutputStream out = dst.getOutputStream();//stream de salida que apunta al contenido del fichero en GDrive donde se va a copiar la información
-
 
             // Copy the bits from instream to outstream
             byte[] buf = new byte[1024];
@@ -123,7 +131,7 @@ public class GDriveClient {
             out.close();
         } catch (FileNotFoundException e) {
             e.printStackTrace();
-            Log.e("GDriveClient.Write", "alej: Archivo origen no encontrado: "+src+" Traza: " + e.getMessage());
+            Log.e("GDriveClient.Write", "alej: Archivo origen no encontrado: " + src + " Traza: " + e.getMessage());
         } catch (IOException e) {
             e.printStackTrace();
             Log.e("GDriveClient.Write", "alej: Error al escribir en el fichero: " + e.getMessage());
@@ -131,50 +139,53 @@ public class GDriveClient {
     }
 
     //GDrive: Lo usamos para borrar los archivos de medida: Tendríamos que guardar el FolderID dentro del XML junto a las medidas, para poder borrarlo
-    public void deleteFile() {
+    public void deleteFile(String strFileId) {
         final String LOGTAG = "GDClient.delete";
-        strFileIdnew = "";//no se ha creado ningún archivo nuevo (sólo se ha borrado)
-        //DriveFile file = fileDriveId.asDriveFile();
-        DriveFile file = DriveId.decodeFromString(strFileId).asDriveFile();//recuperamos el ID a partir del String
+        Log.e(LOGTAG, "alej: Fichero a Borrar: "+strFileId);
+        if (!(strFileId.equals(""))) { //Si el FileID no está vacio, se borra XML antiguo
+            DriveFile file = DriveId.decodeFromString(strFileId).asDriveFile();//recuperamos el ID a partir del String
 
-        //Opción 1: Enviar a la papelera
-        file.trash(apiClient).setResultCallback(new ResultCallback<Status>() {
-            @Override
-            public void onResult(Status status) {
-                if (status.isSuccess()) {
-                    Log.i(LOGTAG, "Fichero eliminado correctamente.");
-                    operacionOk = "Ok";
-                } else {
-                    Log.e(LOGTAG, "Error al eliminar el fichero");
-                    operacionOk = "Error";
+            //Opción 1: Enviar a la papelera
+//            file.trash(apiClient).setResultCallback(new ResultCallback<Status>() {
+//                @Override
+//                public void onResult(Status status) {
+//                    if (status.isSuccess()) {
+//                        Log.e(LOGTAG, "alej: Fichero eliminado correctamente.");
+//                        operacionOk = "Ok";
+//                    } else {
+//                        Log.e(LOGTAG, "alej: Error al eliminar el fichero");
+//                        operacionOk = "Error";
+//                    }
+//                }
+//            });
+            //Opción 2: Eliminar
+            file.delete(apiClient).setResultCallback(new ResultCallback<Status>() {
+                @Override
+                public void onResult(Status status) {
+                    if (status.isSuccess()) {
+                        Log.e(LOGTAG, "alej: Fichero eliminado correctamente.");
+                        operacionOk = "Ok";
+                    } else {
+                        Log.e(LOGTAG, "alej: Error al eliminar el fichero");
+                        operacionOk = "Error";
+                    }
                 }
-            }
-        });
-        //Opción 2: Eliminar
-        //file.delete(apiClient).setResultCallback(...)
-
-
+            });
+        }
     }
 
+    //Decidir según el valor de "operacion", qué tiene que hacer el cliente
     public void run(String operacion) {
         String LOGTAG = "GDClient.run";
 
         //Operación: Copiar archivo
         if (operacion.equals("Copiar")) {
-            Log.e("GDriveClient.run","alej: Createfile: "+src_file);
+            Log.e("GDriveClient.run", "alej: Createfile: " + src_file);
             createFile(src_file);
         }
         //Operación: Borrar archivo
         if (operacion.equals("Borrar")) {
             //Aún por implementar
-            return;
-        }
-
-        //Devolver el control al programa ppal con el estado de la operación y el nuevo FileID (si se ha creado un archivo)
-        if (mMessageListener != null) {
-            Log.e(LOGTAG,"alej: Operacion: "+operacionOk);
-            String[] msg = new String[]{operacionOk,strFileIdnew};
-            mMessageListener.messageReceived(msg);
         }
     }
 

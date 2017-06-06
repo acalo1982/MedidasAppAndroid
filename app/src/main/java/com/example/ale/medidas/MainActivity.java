@@ -239,20 +239,20 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
 
 
     @Override
-    public void onStart(){
+    public void onStart() {
         super.onStart();
         apiClient.connect();
 
     }
 
     @Override
-    public void onStop(){
+    public void onStop() {
         super.onStop();
         apiClient.disconnect();
     }
 
     //GDrive: (Debug) Test Crear Folder en Directorio Raiz
-    public void GDFolderRoot(){
+    public void GDFolderRoot() {
         DriveFolder folder = Drive.DriveApi.getRootFolder(apiClient);
         Log.i("GDFolderRoot", "alej: DriveFolder = " + folder);
         MetadataChangeSet changeSet = new MetadataChangeSet.Builder().setTitle("0AaMedidasApp").build();
@@ -519,24 +519,30 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
     //Guardar Medidas en archivo XML y en el almacenamiento público externo
     @Override
     public void onBackPressed() {
-
+        String LOGTAG = "MainAct.onBackPressed";
         // Guardaremos la medidas del area seleccionada en un archivo XML de nombre: "proyecto.Area.XX.xml"
         int Nmed = Rlist.size();
         String Nmed_update = "1";
         if (Nmed > 0) { //guardamos archivo: lo creamos o actualizamos uno existente
             //Nombre archivo XML
             String nmfile = pref.getString("nameProyecto", "") + ".Area." + NumAreas[NumAreaSelec];
+            Log.e(LOGTAG,"alej nmfile: "+nmfile);
             SharedPreferences prefArea = getSharedPreferences(nmfile, Context.MODE_PRIVATE);
             String Nmedidas = prefArea.getString("Nmedidas", "");//num de medidas en el archivo
 
             //Escritura de las medidas,  media y otros campos de control
             SharedPreferences.Editor editor = prefArea.edit();
+            String fileID= prefArea.getString("GoogleDriveFileID", "");//antes de borrar se recupera el valor d este campo, q se habrá añadido posteriormente al fichero
+            String folderID= prefArea.getString("GoogleDriveFolderID", "");
             editor.clear();//Borramos los valores anteriores: pq estamos sobreescribiendo un area ya guardada!
-            editor.commit();//aplicamos el borrado
+            //editor.commit();//aplicamos el borrado
+            editor.apply();//aplicamos el borrado Inmediato
             //editor.putString("Nmedidas", Nmed_update);//num total de medidas en el archivo
             editor.putString("Nmedidas", String.valueOf(Nmed));//num total de medidas en el archivo
             editor.putString("NombreArea", NumAreas[NumAreaSelec]);//nombre del area al que pertenecen esas medidas
             editor.putString("Media", Rmedia2.toString());//actualizamos la media de las medidas
+            editor.putString("GoogleDriveFileID",fileID);
+            editor.putString("GoogleDriveFolderID", folderID);
             //Otros campos de control importantes para saber la lista de freq de cada medida
             pref = PreferenceManager.getDefaultSharedPreferences(this);
             editor.putString("freq1", pref.getString("freq1", ""));
@@ -548,7 +554,8 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
                 med_txt = "Medida" + (i + 1);
                 editor.putString(med_txt, Rlist.get(i).toString());
             }
-            editor.commit();
+            //editor.commit();//aplicamos el borrado
+            editor.apply();//cambios inmediato
             Toast.makeText(getApplicationContext(), "Área Guardada: " + NumAreas[NumAreaSelec] + "!", Toast.LENGTH_SHORT).show();
             conectado = 1;
 
@@ -571,7 +578,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
 
             //Copiar Archivo a GDrive
             //GDFolderRoot();//Testeo: Crea una carpeta en el Raiz y obtiene el FolderID
-            String[] datos = new String[]{src, "Copiar", MedidasAppFolderID, ""};//filename del XML a copiar!
+            String[] datos = new String[]{src, "Copiar", MedidasAppFolderID, fileID};//filename del XML a copiar!
             new createGDriveFileTask().execute(datos);//debug en Modo Online
         }
 
@@ -804,18 +811,15 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
     }
 
     //Guarda FileID de GDrive en el archivos XML de area guardado previamente
-    public void writeDriveFileID2Preferences(String newFileID,String src_file){
-        Log.e("MainAct.WrteID2Pref", "[SourceFile, FileID] = ["+src_file+", "+newFileID+"]");
-
+    public void writeDriveFileID2Preferences(String newFileID, String src_file) {
         String[] tk = src_file.split("/");//Separa el nombre del path del fichero
-        String nmfile=tk[tk.length-1];
-        //String nmfile = pref.getString("nameProyecto", "") + ".Area." + NumAreas[NumAreaSelec];
+        String nmfile = tk[tk.length - 1];
+        nmfile=nmfile.substring(0,nmfile.length()-4);//eliminamos la extension ".xml"
         SharedPreferences prefArea = getSharedPreferences(nmfile, Context.MODE_PRIVATE);
-
         //Escritura de las medidas,  media y otros campos de control
         SharedPreferences.Editor editor = prefArea.edit();
-        editor.putString("GoogleDriveFileID",newFileID);//ID del fichero creado
-        editor.putString("GoogleDriveFolderID",MedidasAppFolderID);//ID del directorio donde se ha creado el fichero
+        editor.putString("GoogleDriveFileID", newFileID);//ID del fichero creado
+        editor.putString("GoogleDriveFolderID", MedidasAppFolderID);//ID del directorio donde se ha creado el fichero
         editor.commit();
     }
 
@@ -869,7 +873,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
     }
 
 
-    //Cliente v1: Se abre/cierra un socket en el envío de cada comando (si el comando es de request, se espera a la respuesta del VNA)
+    //GDrive: Maneja la conexión a Google Drive para guardar las medidas, debe hacerse en otro hilo (thread)
     public class createGDriveFileTask extends AsyncTask<String, String, GDriveClient> {
         private String resultado;
         private String newFileID;
@@ -883,20 +887,20 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
             String strFileID = listaString[3];//ID del archivo de medida concreto que queremos borrar
 
             //Cliente GDrive para conexión a la cuenta
-            GDriveClient gdrive = new GDriveClient(apiClient,fn, strFolderID, strFileID, new GDriveClient.OnMessageReceived() {
+            GDriveClient gdrive = new GDriveClient(apiClient, fn, strFolderID, strFileID, new GDriveClient.OnMessageReceived() {
                 @Override
                 //here the messageReceived method is implemented
                 public void messageReceived(String[] message) { //Devolverá el FileID del nuevo archivo creado
                     //this method calls the onProgressUpdate
                     resultado = message[0];//comproar operación correcta o no
                     newFileID = message[1];//ID del nuevo archivo creado (sólo para operación Copiar)
-                    Log.e("messageReceived","alej: [resultado, newFileID] = ["+resultado+", "+newFileID+"]");
+                    Log.e("messageReceived", "alej: [resultado, newFileID] = [" + resultado + ", " + newFileID + "]");
                     publishProgress(resultado);
                 }
             });
 
             //LLamamos al método "run()" del objeto "gdrive" que sabrá que hacer en cada operación
-            Log.e("WrteID2Pref", "alej: [XMLfile, Operacion, GDFolderID] = ["+listaString[0]+", "+listaString[1]+", "+listaString[2]+"]");
+            //Log.e("WrteID2Pref", "alej: [XMLfile, Operacion, GDFolderID] = [" + listaString[0] + ", " + listaString[1] + ", " + listaString[2] + "]");
             gdrive.run(operacion);
 
             return null;
@@ -906,8 +910,10 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
         protected void onProgressUpdate(String... values) {
             super.onProgressUpdate(values);
             String msg = values[0];
+            String LOGTAG="onProgressUp";
             if (!(msg.equals("Error"))) {
-                writeDriveFileID2Preferences(newFileID,fn);
+                Log.e(LOGTAG,"alej: FileID: "+newFileID);
+                writeDriveFileID2Preferences(newFileID, fn);
             } else {
                 Toast.makeText(getApplicationContext(), "Error de comunicación con GDrive!", Toast.LENGTH_SHORT).show();
             }
