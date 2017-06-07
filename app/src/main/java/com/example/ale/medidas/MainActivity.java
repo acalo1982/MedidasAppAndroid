@@ -1,8 +1,11 @@
 package com.example.ale.medidas;
 
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Color;
+import android.media.MediaPlayer;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Environment;
 import android.preference.PreferenceManager;
@@ -81,20 +84,12 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
     //private String MedidasAppFolderID = "DriveId:0BxBzpgvBYNJ1ZTJjeDlyNlVWUGs";//FolderID del directorio "MedidaApp" que hay en la cuenta "micromag@micromag.es"
     private String MedidasAppFolderID = "DriveId:CAASABjkOyDMyuu7iFcoAQ==";//FolderID del directorio "MedidaApp" que hay en la cuenta "micromag@micromag.es"
 
-//    @Override
-//    protected void onResume(){
-//        super.onResume();  // Always call the superclass method first
-//        //Comprueba cuando vengamos de vuelta de la pantalla de configuración, q tenemos la calibración
-//        if (Sback==null){}
-//        if (Sref==null){}
-//        if (S3std==null){}
-//
-//    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        super.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+        //super.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+        super.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE);// a 180º
 
         // OPCIONES RELACIONADAS CON LA ACTIONBAR
         setContentView(R.layout.activity_main);
@@ -283,6 +278,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
         actualizarArea = true;
         invalidateOptionsMenu();//esto hace una llamada a la función "onPrepareOptionsMenu()" q tiene acceso a los items de la actionbar
         actualizarArea = false;
+        //graph.removeAllSeries();//borramos los ejes
     }
 
     @Override
@@ -519,21 +515,26 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
     //Guardar Medidas en archivo XML y en el almacenamiento público externo
     @Override
     public void onBackPressed() {
-        String LOGTAG = "MainAct.onBackPressed";
+        guardarArea();
+    }
+
+    //Guardar Area en: archivo XML (Preferences), en almacenamiento publico (interno o externo) y en GDrive
+    public void guardarArea() {
+        String LOGTAG = "MainAct.guardarArea";
         // Guardaremos la medidas del area seleccionada en un archivo XML de nombre: "proyecto.Area.XX.xml"
         int Nmed = Rlist.size();
         String Nmed_update = "1";
         if (Nmed > 0) { //guardamos archivo: lo creamos o actualizamos uno existente
             //Nombre archivo XML
             String nmfile = pref.getString("nameProyecto", "") + ".Area." + NumAreas[NumAreaSelec];
-            Log.e(LOGTAG,"alej nmfile: "+nmfile);
+            Log.e(LOGTAG, "alej nmfile: " + nmfile);
             SharedPreferences prefArea = getSharedPreferences(nmfile, Context.MODE_PRIVATE);
             String Nmedidas = prefArea.getString("Nmedidas", "");//num de medidas en el archivo
 
             //Escritura de las medidas,  media y otros campos de control
             SharedPreferences.Editor editor = prefArea.edit();
-            String fileID= prefArea.getString("GoogleDriveFileID", "");//antes de borrar se recupera el valor d este campo, q se habrá añadido posteriormente al fichero
-            String folderID= prefArea.getString("GoogleDriveFolderID", "");
+            String fileID = prefArea.getString("GoogleDriveFileID", "");//antes de borrar se recupera el valor d este campo, q se habrá añadido posteriormente al fichero
+            String folderID = prefArea.getString("GoogleDriveFolderID", "");
             editor.clear();//Borramos los valores anteriores: pq estamos sobreescribiendo un area ya guardada!
             //editor.commit();//aplicamos el borrado
             editor.apply();//aplicamos el borrado Inmediato
@@ -541,7 +542,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
             editor.putString("Nmedidas", String.valueOf(Nmed));//num total de medidas en el archivo
             editor.putString("NombreArea", NumAreas[NumAreaSelec]);//nombre del area al que pertenecen esas medidas
             editor.putString("Media", Rmedia2.toString());//actualizamos la media de las medidas
-            editor.putString("GoogleDriveFileID",fileID);
+            editor.putString("GoogleDriveFileID", fileID);
             editor.putString("GoogleDriveFolderID", folderID);
             //Otros campos de control importantes para saber la lista de freq de cada medida
             pref = PreferenceManager.getDefaultSharedPreferences(this);
@@ -556,7 +557,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
             }
             //editor.commit();//aplicamos el borrado
             editor.apply();//cambios inmediato
-            Toast.makeText(getApplicationContext(), "Área Guardada: " + NumAreas[NumAreaSelec] + "!", Toast.LENGTH_SHORT).show();
+            //Toast.makeText(getApplicationContext(), "Área Guardada: " + NumAreas[NumAreaSelec] + "!", Toast.LENGTH_SHORT).show();
             conectado = 1;
 
             //Copiamos el archivo XML al almacenamiento publico (interno) tb para que sea accesible para pasarlos al ordenador
@@ -581,7 +582,6 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
             String[] datos = new String[]{src, "Copiar", MedidasAppFolderID, fileID};//filename del XML a copiar!
             new createGDriveFileTask().execute(datos);//debug en Modo Online
         }
-
     }
 
     //Actualiza los nombres de las areas o el num de areas a medir
@@ -621,43 +621,68 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
     //Actualiza el icono del criterio para la última medida
     public void actualizaCriterio(Menu menu) {
         MenuItem item2 = menu.findItem(R.id.criterio);
+        int Rsound=0;
         switch (criterio_ico) {
             case 1: //No necesita ser pintado más
                 item2.setIcon(android.R.drawable.presence_busy);
+                Rsound = R.raw.stop;
                 break;
             case -1: //No necesita ser pintado más
                 item2.setIcon(android.R.drawable.presence_busy);
                 Toast.makeText(getApplicationContext(), "Baja Atenuación!", Toast.LENGTH_SHORT).show();
+                Rsound = R.raw.stop;
                 break;
             case 2: //Necesita menor espesor
                 item2.setIcon(android.R.drawable.button_onoff_indicator_on);
+                Rsound = R.raw.minus;
                 break;
             case -2: //Necesita menor espesor
                 item2.setIcon(android.R.drawable.button_onoff_indicator_on);
                 Toast.makeText(getApplicationContext(), "Baja Atenuación!", Toast.LENGTH_SHORT).show();
+                Rsound = R.raw.minus;
                 break;
             case 3: //Espesor adecuado
                 item2.setIcon(android.R.drawable.btn_star_big_on);
+                Rsound = R.raw.perfect;
                 break;
             case -3: //Espesor adecuado
                 item2.setIcon(android.R.drawable.btn_star_big_on);
                 Toast.makeText(getApplicationContext(), "Baja Atenuación!", Toast.LENGTH_SHORT).show();
                 Log.e("actualizarCriterio", "alej: -3 Baja Att.");
+                Rsound = R.raw.perfect;
                 break;
             case 4: //Necesita mayor espesor
                 item2.setIcon(android.R.drawable.ic_input_add);
+                Rsound = R.raw.plus;
                 break;
             case -4: //Necesita mayor espesor
                 item2.setIcon(android.R.drawable.ic_input_add);
                 Toast.makeText(getApplicationContext(), "Baja Atenuación!", Toast.LENGTH_SHORT).show();
+                Rsound = R.raw.plus;
                 break;
             case 5: //Curva con forma erronea: p.e medir el background o metal o que aparezcan multiples picos de absorción <-10dB (para el monobanda)
                 item2.setIcon(android.R.drawable.presence_offline);
                 Toast.makeText(getApplicationContext(), "Curva Errónea!", Toast.LENGTH_SHORT).show();
+                Rsound = R.raw.dcat;
                 break;
             default: //La curva S11 no es correcta (no tiene mínimos o tiene un formato que no es el esperado)
                 item2.setIcon(android.R.drawable.screen_background_light_transparent);
+                Rsound = 0;
                 break;
+        }
+
+        //Emite sonido acorde al tipo de medida realizada
+        if (Rsound!=0) {
+            MediaPlayer player = new MediaPlayer();
+            String RESOURCE_PATH = ContentResolver.SCHEME_ANDROID_RESOURCE + "://";
+            String path = RESOURCE_PATH + getPackageName() + File.separator + Rsound;//android.resource://[package]/[resource_id]
+            try {
+                player.setDataSource(getApplicationContext(), Uri.parse(path));
+                player.prepare();
+                player.start();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -675,6 +700,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
         //Actualizamos el num de areas a medir: en teoría debe hacerse cuando pulsamos el botón "atrás" desde la pantalla de conf
         if (actualizarArea == true) {
             actulizaSpinnerArea(menu);
+            graph.removeAllSeries();//borramos los ejes
         }
 
 
@@ -712,6 +738,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
                 if (!(i == NumAreaSelec)) {
                     //--Si existe fichero del area, ya guardado anteriormente, recuperamos las medidas (pintamos por pantalla la media y última medida y actualizamos el)
                     //Borramos datos anteriores
+                    guardarArea();//forzamos a guardar nuevamente el area, para evitar perder datos
                     Rlist.clear();//borramos la lista de curvas anteriores!
                     graph.removeAllSeries();//borramos las series de los ejes
                     //Abrimos o creamos (si no existe) el fichero de conf. para ese área
@@ -749,7 +776,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
                         criterio_ico = (criterio.BandaXmetal(fo));//criterio aplicado a fo
                         actualizaCriterio(m);
 
-                        Toast.makeText(getApplicationContext(), "Area cargada:  " + NumAreas[i] + "!", Toast.LENGTH_SHORT).show();
+                        //Toast.makeText(getApplicationContext(), "Area cargada:  " + NumAreas[i] + "!", Toast.LENGTH_SHORT).show();
                     } else { //Si no existen medidas, es q ese área es nueva y no se ha guardado nada previamente
                         Toast.makeText(getApplicationContext(), "Area nueva!", Toast.LENGTH_SHORT).show();
                         criterio_ico = 10;
@@ -814,7 +841,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
     public void writeDriveFileID2Preferences(String newFileID, String src_file) {
         String[] tk = src_file.split("/");//Separa el nombre del path del fichero
         String nmfile = tk[tk.length - 1];
-        nmfile=nmfile.substring(0,nmfile.length()-4);//eliminamos la extension ".xml"
+        nmfile = nmfile.substring(0, nmfile.length() - 4);//eliminamos la extension ".xml"
         SharedPreferences prefArea = getSharedPreferences(nmfile, Context.MODE_PRIVATE);
         //Escritura de las medidas,  media y otros campos de control
         SharedPreferences.Editor editor = prefArea.edit();
@@ -910,9 +937,9 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
         protected void onProgressUpdate(String... values) {
             super.onProgressUpdate(values);
             String msg = values[0];
-            String LOGTAG="onProgressUp";
+            String LOGTAG = "onProgressUp";
             if (!(msg.equals("Error"))) {
-                Log.e(LOGTAG,"alej: FileID: "+newFileID);
+                Log.e(LOGTAG, "alej: FileID: " + newFileID);
                 writeDriveFileID2Preferences(newFileID, fn);
             } else {
                 Toast.makeText(getApplicationContext(), "Error de comunicación con GDrive!", Toast.LENGTH_SHORT).show();

@@ -806,12 +806,13 @@ class criterioCurva {
     //Criterio para mono banda sobre metal en banda X
     public int BandaXmetal(double fo) {
         //Los valores devueltos podrán ser: 0 (curva erronea), 1 (No pintar), 2 (Pintar un poco), 3 (Correcto), 4(Pintar más)
-
+        String LOGATG = "BandaXmetal";
         int resultado = 0;
         double S11maxdB = -10;//umbral: max valor del S11 permitido
         double df = freq[2] - freq[1];
         double bw = 0.5;//0.2GHz entorno a "fo"
         int dpos = (int) (bw / df);
+        ;
         if (dpos == 0) {
             dpos = 1;
         }
@@ -823,21 +824,24 @@ class criterioCurva {
         int N = ymod.length;
         double ymeandB = 0;
         for (int i = 0; i < ymod.length; i += 1) {
-            ymeandB += ymod[i] / N;
+            ymeandB += ymod[i];
         }
+        ymeandB = ymeandB / N;
+        Log.e(LOGATG, "alej: Media: " + ymeandB);
         //Media con valor muy bajo (medida al aire) o muy alto (medida metal)
-        if (ymeandB >= -3 || ymeandB <= -10) {
+        if (ymeandB >= -2 || (ymeandB < S11maxdB)) {
             Log.e("BandaXmetal", "alej: Curva Erronea ymeas = " + ymeandB);
             return 5;
         }
+
         //Multiples picos de absorción con baja atenuación: estaríamos midiendo un esquema de doble banda o cualquier otra curva errónea
-        int cnt = 0;//contador d picos con |S11|<-10dB
+        int cnt = 0;//contador d picos con |S11|<-5dB (picos entre -5 y -10 son considerados válidos, pero de poca atenuación)
         for (int i = 0; i < minLocAll.valor.length; i += 1) {
-            if (minLocAll.valor[i] <= S11maxdB) {
+            if (minLocAll.valor[i] <= S11maxdB / 2) { //-5dB
                 cnt += 1;
             }
             if (cnt > 1) {
-                Log.e("BandaXmetal", "alej: Curva Erronea Npicos <-6dB = " + cnt);
+                Log.e("BandaXmetal", "alej: Curva Erronea Npicos <-10dB = " + cnt);
                 return 5;
             }
 
@@ -869,12 +873,17 @@ class criterioCurva {
         double freq1 = 0;
         positionValor minLoc1 = min_max(y1, "min");
         if (!(minLoc1 == null)) {
+            int cnt10dB = contadorCondicion(minLoc1.valor, S11maxdB);
             int cnt5dB = contadorCondicion(minLoc1.valor, S11maxdB / 2);
             int cnt3dB = contadorCondicion(minLoc1.valor, -3);
-            if (cnt3dB > 0 && cnt5dB == 0) { //Picos entre -3 y -5dB son considerados como picos de baja atenuación (si son >-3dB no se consideran picos)
+            //if (cnt3dB > 0 && cnt5dB == 0) { //Picos entre -3 y -5dB son considerados como picos de baja atenuación (si son >-3dB no se consideran picos)
+            if (cnt5dB > 0 && cnt10dB == 0) { //Picos entre -5 y -10dB son considerados como picos de baja atenuación (si son >-3dB no se consideran picos)
                 flag1 = -1;
+                double y1min = min(minLoc1.valor);
+                int ymin1_pos = indexOf(minLoc1.valor, y1min, 0);
+                freq1 = f1[(int) minLoc1.idx[ymin1_pos]];//freq del minimo1
             }
-            if (cnt5dB > 0) {
+            if (cnt10dB > 0) {
                 double y1min = min(minLoc1.valor);
                 int ymin1_pos = indexOf(minLoc1.valor, y1min, 0);
                 freq1 = f1[(int) minLoc1.idx[ymin1_pos]];//freq del minimo1
@@ -890,9 +899,14 @@ class criterioCurva {
         double freq2 = 0;
         positionValor minLoc2 = min_max(y2, "min");
         if (!(minLoc2 == null)) {
+            int cnt10dB = contadorCondicion(minLoc2.valor, S11maxdB);
             int cnt5dB = contadorCondicion(minLoc2.valor, S11maxdB / 2);
             int cnt3dB = contadorCondicion(minLoc2.valor, -3);
-            if (cnt3dB > 0 && cnt5dB == 0) { //Picos entre -3 y -5dB son considerados como picos de baja atenuación (si son >-3dB no se consideran picos)
+            //if (cnt3dB > 0 && cnt5dB == 0) { //Picos entre -3 y -5dB son considerados como picos de baja atenuación (si son >-3dB no se consideran picos)
+            if (cnt5dB > 0 && cnt10dB == 0) { //Picos entre -5 y -10dB son considerados como picos de baja atenuación (si son >-3dB no se consideran picos)
+                double y2min = min(minLoc2.valor);
+                int ymin2_pos = indexOf(minLoc2.valor, y2min, 0);
+                freq2 = f2[(int) minLoc2.idx[ymin2_pos]];//freq del minimo1
                 flag2 = -1;
             }
             if (cnt5dB > 0) { //si existe algún pico cuya atenuación sea <-5dB, se considera que existe pico
@@ -924,8 +938,9 @@ class criterioCurva {
         }
 
         //Si no existen ningún minimo
-        Log.e("BandaXmetal", "alej: Resultado 0: No existen mínimos o tienen atenuación <-6dB!");
-        return 0;
+        Log.e("BandaXmetal", "alej: Resultado 0: No existen mínimos o tienen atenuación <-6dB! Media: " + ymeandB);
+        //return 0;//no muestra icono del tipo de curva
+        return 5;//icono de curva erronea
     }
 }
 
