@@ -1,9 +1,12 @@
 package com.example.ale.medidas;
 
+import android.app.NotificationManager;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.drawable.BitmapDrawable;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -12,6 +15,7 @@ import android.preference.PreferenceManager;
 import android.support.v4.view.MenuItemCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.app.NotificationCompat;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -621,47 +625,67 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
     //Actualiza el icono del criterio para la última medida
     public void actualizaCriterio(Menu menu) {
         MenuItem item2 = menu.findItem(R.id.criterio);
-        int Rsound=0;
+        int Rsound = 0;
+        int icono = 0;
+        String txt = "";
         switch (criterio_ico) {
             case 1: //No necesita ser pintado más
                 item2.setIcon(android.R.drawable.presence_busy);
+                icono = android.R.drawable.presence_busy;
+                txt = "STOP";
                 Rsound = R.raw.stop;
                 break;
             case -1: //No necesita ser pintado más
                 item2.setIcon(android.R.drawable.presence_busy);
+                icono = android.R.drawable.presence_busy;
+                txt = "STOP";
                 Toast.makeText(getApplicationContext(), "Baja Atenuación!", Toast.LENGTH_SHORT).show();
                 Rsound = R.raw.stop;
                 break;
             case 2: //Necesita menor espesor
                 item2.setIcon(android.R.drawable.button_onoff_indicator_on);
+                icono = android.R.drawable.button_onoff_indicator_on;
+                txt = "MENOS";
                 Rsound = R.raw.minus;
                 break;
             case -2: //Necesita menor espesor
                 item2.setIcon(android.R.drawable.button_onoff_indicator_on);
+                icono = android.R.drawable.button_onoff_indicator_on;
+                txt = "MENOS";
                 Toast.makeText(getApplicationContext(), "Baja Atenuación!", Toast.LENGTH_SHORT).show();
                 Rsound = R.raw.minus;
                 break;
             case 3: //Espesor adecuado
                 item2.setIcon(android.R.drawable.btn_star_big_on);
+                icono = android.R.drawable.btn_star_big_on;
+                txt = "OK";
                 Rsound = R.raw.perfect;
                 break;
             case -3: //Espesor adecuado
                 item2.setIcon(android.R.drawable.btn_star_big_on);
+                icono = android.R.drawable.btn_star_big_on;
+                txt = "OK";
                 Toast.makeText(getApplicationContext(), "Baja Atenuación!", Toast.LENGTH_SHORT).show();
                 Log.e("actualizarCriterio", "alej: -3 Baja Att.");
                 Rsound = R.raw.perfect;
                 break;
             case 4: //Necesita mayor espesor
                 item2.setIcon(android.R.drawable.ic_input_add);
+                icono = android.R.drawable.ic_input_add;
+                txt = "MAS";
                 Rsound = R.raw.plus;
                 break;
             case -4: //Necesita mayor espesor
                 item2.setIcon(android.R.drawable.ic_input_add);
+                icono = android.R.drawable.ic_input_add;
+                txt = "MAS";
                 Toast.makeText(getApplicationContext(), "Baja Atenuación!", Toast.LENGTH_SHORT).show();
                 Rsound = R.raw.plus;
                 break;
             case 5: //Curva con forma erronea: p.e medir el background o metal o que aparezcan multiples picos de absorción <-10dB (para el monobanda)
                 item2.setIcon(android.R.drawable.presence_offline);
+                icono = android.R.drawable.presence_offline;
+                txt = "ERROR";
                 Toast.makeText(getApplicationContext(), "Curva Errónea!", Toast.LENGTH_SHORT).show();
                 Rsound = R.raw.dcat;
                 break;
@@ -672,7 +696,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
         }
 
         //Emite sonido acorde al tipo de medida realizada
-        if (Rsound!=0) {
+        if (Rsound != 0) {
             MediaPlayer player = new MediaPlayer();
             String RESOURCE_PATH = ContentResolver.SCHEME_ANDROID_RESOURCE + "://";
             String path = RESOURCE_PATH + getPackageName() + File.separator + Rsound;//android.resource://[package]/[resource_id]
@@ -684,6 +708,18 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
                 e.printStackTrace();
             }
         }
+
+
+        //Notificacion en la barra de tareas
+        int notificationID=1;
+        NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(MainActivity.this);
+        mBuilder.setContentTitle(txt);
+        mBuilder.setContentText(txt);
+        mBuilder.setContentInfo("M" + Rlist.size());
+        mBuilder.setSmallIcon(icono);
+        mBuilder.setTicker(txt);
+        NotificationManager mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        mNotificationManager.notify(notificationID, mBuilder.build());
     }
 
     //Actualiza la actionbar tras una llamada a "invalidateOptionsMenu()" (aprovecharemos para cambiar el título del item de la actionbar q usaremos para mostrar el num. medidas actual
@@ -713,7 +749,8 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
         if (conectado == 1) {
             item.setIcon(android.R.drawable.ic_notification_overlay);
         } else {
-            item.setIcon(android.R.drawable.presence_invisible);
+            //item.setIcon(android.R.drawable.presence_invisible);
+            item.setIcon(android.R.drawable.ic_lock_power_off);
         }
 
         return true;
@@ -828,7 +865,8 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
                     item.setIcon(android.R.drawable.ic_notification_overlay);
                 } else {
                     conectado = 0;
-                    item.setIcon(android.R.drawable.presence_invisible);
+                    //item.setIcon(android.R.drawable.presence_invisible);
+                    item.setIcon(android.R.drawable.ic_lock_power_off);
                     Log.e("ActionBar", "alej: Desconectado: boton en gris");
                 }
                 return true;

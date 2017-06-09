@@ -27,7 +27,7 @@
 
     <item
         android:id="@+id/action_settings"
-        android:icon="@android:drawable/presence_invisible"
+        android:icon="@android:drawable/ic_lock_power_off"
         android:orderInCategory="100"
         android:title="@string/action_settings"
         app:showAsAction="always" />
