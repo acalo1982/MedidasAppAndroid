@@ -819,7 +819,7 @@ class criterioCurva {
         int posfo = indexOf(freq, fo, 0, df);
 
 
-        //Comprabar si la curva es errónea: (código 5), Si tiene 2 picos <-10dB o la media es <-10dB (medida del background o antena mal apoyada o superficie curva) o media es > -3dB (midiendo metal)
+        //Comprobar si la curva es errónea: (código 5), Si tiene 2 picos <-10dB o la media es <-10dB (medida del background o antena mal apoyada o superficie curva) o media es > -3dB (midiendo metal)
         positionValor minLocAll = min_max(ymod, "min");
         int N = ymod.length;
         double ymeandB = 0;

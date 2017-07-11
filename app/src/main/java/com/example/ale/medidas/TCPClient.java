@@ -20,6 +20,7 @@ public class TCPClient {
     private int SERVERPORT = 5025; //valor por defecto, en caso de que no se de este parametro en el constructor de esta clase
     private OnMessageReceived mMessageListener = null;
     private boolean mRun = false;
+    public String battery="-1";
 
     PrintWriter out;
     BufferedReader in;
@@ -95,7 +96,12 @@ public class TCPClient {
                     if (serverMessage != null && mMessageListener != null) {
                         //call the method messageReceived from MyActivity class
                         //Log.e("TCPClient", "alej: Received Message: '" + serverMessage + "'");
-                        mMessageListener.messageReceived(serverMessage);
+                        if (txt.equals(":SYSTem:BATTery:ABSCharge?")) {
+                            battery=serverMessage; //Se almacena el valor del porcentaje de batería del VNA
+                            mMessageListener.messageReceived("Bateria");
+                        }else{
+                            mMessageListener.messageReceived(serverMessage);
+                        }
                     }
                     serverMessage = null;
                 }
@@ -137,7 +143,7 @@ public class TCPClient {
                     String txt = txt_list[idx];//Procesamos cada comando
                     sendMessage(txt);
                     String str_end = txt.substring(txt.length() - 1);
-                    if (str_end.equals("?")) {
+                    if (str_end.equals("?")) { //Si el comando para el VNA acaba con "?", es que se espera una respuesta por parte del VNA  y hay que procesarla
                         serverMessage = in.readLine();
                         if (serverMessage != null && mMessageListener != null) {
                             mMessageListener.messageReceived(serverMessage);
@@ -145,7 +151,12 @@ public class TCPClient {
                         serverMessage = null;
                     }
                     //Log.e("TCPClient", "alej: Comando "+idx+": "+txt);
-                    Thread.sleep(1000);//delay en la ejecucion de cada comando
+                    Thread.sleep(1500);//delay de 1s en la ejecucion de cada comando
+                }
+
+                //Detecta secuencia de Inicializacion del VNA y envía fin del proceso a la Actividad principal
+                if (txt_list[0].equals(":INST \"NA\"")) {
+                    mMessageListener.messageReceived("FinInicializacion");//Comandos enviados correctamente
                 }
                 socket.close();
             } catch (Exception e) {

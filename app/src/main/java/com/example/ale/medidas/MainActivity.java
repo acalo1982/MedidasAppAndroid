@@ -1,6 +1,7 @@
 package com.example.ale.medidas;
 
 import android.app.NotificationManager;
+import android.app.ProgressDialog;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -87,7 +88,8 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
     private GoogleApiClient apiClient;//cliente para manejar la conexión con Google Drive
     //private String MedidasAppFolderID = "DriveId:0BxBzpgvBYNJ1ZTJjeDlyNlVWUGs";//FolderID del directorio "MedidaApp" que hay en la cuenta "micromag@micromag.es"
     private String MedidasAppFolderID = "DriveId:CAASABjkOyDMyuu7iFcoAQ==";//FolderID del directorio "MedidaApp" que hay en la cuenta "micromag@micromag.es"
-
+    private ProgressDialog progress;//Barra de progreso para la conexión inicial al analizador
+    private String bateria_vna="-1";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -159,7 +161,12 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
             @Override
             public void onClick(View view) {
                 //lecturaS11(null);//debug en Modo Offline
-                new connectTask().execute(":CALC:DATA:SDAT?");//debug en Modo Online
+                if (conectado==1) {
+                    new connectTask().execute(":CALC:DATA:SDAT?");//leer datos S11
+                    new connectTask().execute(":SYSTem:BATTery:ABSCharge?");//leer nivel bateria VNA
+                }else{
+                    Toast.makeText(getApplicationContext(), "Analizador No Conectado!", Toast.LENGTH_SHORT).show();
+                }
                 //Debug: Conexión a GDrive y Crear carpeta en el directorio Raiz
 //                new Thread() {
 //                    @Override
@@ -562,7 +569,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
             //editor.commit();//aplicamos el borrado
             editor.apply();//cambios inmediato
             //Toast.makeText(getApplicationContext(), "Área Guardada: " + NumAreas[NumAreaSelec] + "!", Toast.LENGTH_SHORT).show();
-            conectado = 1;
+            //conectado = 1;//no hace falta que activemos el boton de conex con el VNA
 
             //Copiamos el archivo XML al almacenamiento publico (interno) tb para que sea accesible para pasarlos al ordenador
             File fdExt = new File(Environment.getExternalStorageDirectory(), "0AaMedidas");//creamos o accedemos al directorio medidas
@@ -687,7 +694,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
                 icono = android.R.drawable.presence_offline;
                 txt = "ERROR";
                 Toast.makeText(getApplicationContext(), "Curva Errónea!", Toast.LENGTH_SHORT).show();
-                Rsound = R.raw.dcat;
+                //Rsound = R.raw.dcat;
                 break;
             default: //La curva S11 no es correcta (no tiene mínimos o tiene un formato que no es el esperado)
                 item2.setIcon(android.R.drawable.screen_background_light_transparent);
@@ -747,10 +754,44 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
         //Pintamos el botón en rojo (estamos conectados)
         item = menu.findItem(R.id.action_settings);
         if (conectado == 1) {
-            item.setIcon(android.R.drawable.ic_notification_overlay);
+            item.setIcon(R.drawable.ic_lock_power_off_verde);
         } else {
             //item.setIcon(android.R.drawable.presence_invisible);
             item.setIcon(android.R.drawable.ic_lock_power_off);
+        }
+
+        //Actuliza nivel de la bateria
+        item = menu.findItem(R.id.bateria);
+        if (conectado == 1) {
+            int drawableResourceId;
+            if (bateria_vna.equals("-1")){
+                drawableResourceId=R.drawable.battery_charge_background_00;
+            }else {
+                String icon_name="";
+                int bat=Integer.parseInt(bateria_vna);
+                bat+=7;//la lectura del vna no coincide con el valor
+                bateria_vna=String.valueOf(bat);
+                if (bat<5){
+                    drawableResourceId = R.drawable.battery_charge_background_01;
+                }else if (bat>=5 && bat<10){
+                    drawableResourceId = R.drawable.battery_charge_background_05;
+                }else {
+                    int bat2digit = Integer.parseInt(bateria_vna.substring(1));
+                    String digit2="";
+                    if (bat2digit <= 3) {
+                        digit2 = "0";
+                    } else if (bat2digit > 3 && bat2digit <= 9) {
+                        digit2 = "5";
+                    }
+                    icon_name = "battery_charge_background_" + bateria_vna.substring(0, 1) + digit2;
+                    Log.e("onPrepareOptionsMenu", "alej: Archivo Bateria: "+icon_name);
+                    drawableResourceId = this.getResources().getIdentifier(icon_name, "drawable", this.getPackageName());
+                }
+
+            }
+            item.setIcon(drawableResourceId);
+        }else{ //No muestra dato sobre la bateria
+            item.setIcon(R.drawable.battery_charge_background_00);
         }
 
         return true;
@@ -860,14 +901,30 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
                     Log.e("ActionBar", "alej: Conectado: boton en rojo");
                     //Configuración del VNA
                     String[] cmd_conf = {":INST \"NA\"", ":SOUR:POW:ALC HIGH", ":INIT:CONT 1", ":FREQ:STAR 2e9", ":FREQ:STOP 18e9", ":SWE:POIN 201", ":BWID 1000", ":AVER:COUN 1"};
-                    new connectTask().execute(cmd_conf);
+
+                    //Mostramos Barra de Progreso
+                    progress=new ProgressDialog(this);
+                    progress.setMessage("Conectando al VNA");
+                    progress.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+                    progress.setIndeterminate(true);
+                    progress.setMax(1);
+                    progress.setProgress(0);
+                    progress.show();
+                    new connectTask().execute(cmd_conf);//La conexión con el VNA se maneja en otro hilo independiente
                     //item.setIcon(android.R.drawable.presence_online);
-                    item.setIcon(android.R.drawable.ic_notification_overlay);
+                    //item.setIcon(android.R.drawable.ic_notification_overlay);
+                    item.setIcon(R.drawable.ic_lock_power_off_verde);//No marcamos en rojo hasta que no se haya conectado (icono coloreado de rojo indicando q se está conectado)
                 } else {
                     conectado = 0;
+                    bateria_vna="-1";
                     //item.setIcon(android.R.drawable.presence_invisible);
                     item.setIcon(android.R.drawable.ic_lock_power_off);
                     Log.e("ActionBar", "alej: Desconectado: boton en gris");
+                }
+                return true;
+            case R.id.bateria: //Se pulsa sobre el icono de la bateria
+                if (conectado==1) {
+                    new connectTask().execute(":SYSTem:BATTery:ABSCharge?");//leer nivel bateria VNA
                 }
                 return true;
             default:
@@ -925,14 +982,22 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
         protected void onProgressUpdate(String... values) {
             super.onProgressUpdate(values);
             String msg = values[0];
-            if (!(msg.equals("Error"))) {
-                lecturaS11(msg);//Tras recibir un msg, llamamos a la función que lo procesa
-                //mTcpClient.stopClient();
+            if (msg.equals("Bateria")) {
                 conectado = 1;
-            } else {
+                bateria_vna = mTcpClient.battery;
+                Log.e("connectTask", "alej: Bateria VNA: "+bateria_vna+"%");
+                invalidateOptionsMenu();//actualiza la actionBar con el porcentaje de bateria q le queda al VNA
+            } else if (msg.equals("Error"))  {
                 Toast.makeText(getApplicationContext(), "Error de red o No conectado a la Wfi del VNA", Toast.LENGTH_SHORT).show();
                 conectado = 0; //boton en gris pq ha habido un fallo
+                bateria_vna="-1";//bateria VNA: no se dispone de datos
                 invalidateOptionsMenu();//actualiza la actionBar para dibujar el boton en gris
+            } else if (msg.equals("FinInicializacion")){ //Se han enviado todos los comandos de inicializacion al VNA: cerrar Barra de Progreso!
+//                progress.setProgress(progress.getMax());
+                progress.dismiss();
+            }else{ //Los datos devueltos son la lectura del param S11
+                lecturaS11(msg);//Tras recibir un msg, llamamos a la función que lo procesa
+                conectado = 1;
             }
         }
     }

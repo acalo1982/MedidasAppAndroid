@@ -33,6 +33,13 @@
         app:showAsAction="always" />
 
     <item
+        android:id="@+id/bateria"
+        android:icon="@drawable/battery_charge_background_00"
+        android:orderInCategory="100"
+        android:title="@string/action_settings"
+        app:showAsAction="always" />
+
+    <item
         android:id="@+id/action_buscar"
         android:icon="@android:drawable/ic_menu_preferences"
         android:orderInCategory="100"
