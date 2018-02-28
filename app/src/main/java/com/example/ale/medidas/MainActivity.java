@@ -161,7 +161,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
             @Override
             public void onClick(View view) {
                 //lecturaS11(null);//debug en Modo Offline
-                if (conectado==1) {
+                if ((conectado==1) || (conectado==0)) { //Siempre entra en este "if": a veces cuando salimos de la app y volvemos "conectado=0" y realmente el VNA estaba conectado. Para evitar q nos deje medir, siempre medimos, aunque no hubiese VNA
                     new connectTask().execute(":CALC:DATA:SDAT?");//leer datos S11
                     new connectTask().execute(":SYSTem:BATTery:ABSCharge?");//leer nivel bateria VNA
                 }else{
@@ -286,10 +286,12 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
     @Override
     protected void onResume() {
         super.onResume();  // Always call the superclass method first
+        //graph.removeAllSeries();//borramos los ejes
+        NumAreaSelec=-1; //evita que cuando se modifique el nombre del proyecto, el último área que se estuviera visualizando del proyecto anterior se copie en el nuevo proyecto
         actualizarArea = true;
         invalidateOptionsMenu();//esto hace una llamada a la función "onPrepareOptionsMenu()" q tiene acceso a los items de la actionbar
         actualizarArea = false;
-        //graph.removeAllSeries();//borramos los ejes
+        graph.removeAllSeries();//borramos los ejes
     }
 
     @Override
@@ -583,6 +585,8 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
             if (isExternalStorageWritable()) {
                 if (saveSharedPreferencesToFile(src, dst) == false) {
                     Toast.makeText(getApplicationContext(), "Error de Escritura", Toast.LENGTH_SHORT).show();
+                }else{
+                    Toast.makeText(getApplicationContext(), "Área Guardada: " + NumAreas[NumAreaSelec] + "!", Toast.LENGTH_SHORT).show();
                 }
             } else {
                 Toast.makeText(getApplicationContext(), "Almacenamiento Externo No Disponible", Toast.LENGTH_SHORT).show();
@@ -762,7 +766,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
 
         //Actuliza nivel de la bateria
         item = menu.findItem(R.id.bateria);
-        if (conectado == 1) {
+        if ((conectado == 1) || (conectado==0)) { //no comprobamos que esté conectado: a veces tras estar desconectado  y salir de la pantalla principal, la var. se pone en desconectado
             int drawableResourceId;
             if (bateria_vna.equals("-1")){
                 drawableResourceId=R.drawable.battery_charge_background_00;
@@ -853,13 +857,14 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
                         //criterio_ico = Math.abs(criterio.BandaXmetal(fo));//criterio aplicado a fo
                         criterio_ico = (criterio.BandaXmetal(fo));//criterio aplicado a fo
                         actualizaCriterio(m);
-
                         //Toast.makeText(getApplicationContext(), "Area cargada:  " + NumAreas[i] + "!", Toast.LENGTH_SHORT).show();
                     } else { //Si no existen medidas, es q ese área es nueva y no se ha guardado nada previamente
                         Toast.makeText(getApplicationContext(), "Area nueva!", Toast.LENGTH_SHORT).show();
                         criterio_ico = 10;
                         actualizaCriterio(m);
                     }
+
+
                     //Actualizamos el num de medidas mostrados en la ActionBar: ya sea a "0" (si es nueva área) o Nmed_anterior (si el área ya fue guardada)
                     MenuItem item = m.findItem(R.id.action_nuevo);
                     //int Nmed = Rlist.size() + Nmed_prev;
