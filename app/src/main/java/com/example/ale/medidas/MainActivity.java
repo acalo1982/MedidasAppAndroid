@@ -614,6 +614,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
                 file.delete();
                 Log.e(LOGTAG, "alej: Archivo borrado SD: " + nmfile);
                 //Toast.makeText(getApplicationContext(), "Área Borrada: " + NumAreas[NumAreaSelec] + "!", Toast.LENGTH_SHORT).show();
+                //Toast.makeText(getApplicationContext(), "Área Borrada: " + NumAreas[NumAreaSelec] + "!", Toast.LENGTH_SHORT).show();
             }
         }
 
