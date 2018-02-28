@@ -89,7 +89,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
     //private String MedidasAppFolderID = "DriveId:0BxBzpgvBYNJ1ZTJjeDlyNlVWUGs";//FolderID del directorio "MedidaApp" que hay en la cuenta "micromag@micromag.es"
     private String MedidasAppFolderID = "DriveId:CAASABjkOyDMyuu7iFcoAQ==";//FolderID del directorio "MedidaApp" que hay en la cuenta "micromag@micromag.es"
     private ProgressDialog progress;//Barra de progreso para la conexión inicial al analizador
-    private String bateria_vna="-1";
+    private String bateria_vna = "-1";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -161,10 +161,10 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
             @Override
             public void onClick(View view) {
                 //lecturaS11(null);//debug en Modo Offline
-                if ((conectado==1) || (conectado==0)) { //Siempre entra en este "if": a veces cuando salimos de la app y volvemos "conectado=0" y realmente el VNA estaba conectado. Para evitar q nos deje medir, siempre medimos, aunque no hubiese VNA
+                if ((conectado == 1) || (conectado == 0)) { //Siempre entra en este "if": a veces cuando salimos de la app y volvemos "conectado=0" y realmente el VNA estaba conectado. Para evitar q nos deje medir, siempre medimos, aunque no hubiese VNA
                     new connectTask().execute(":CALC:DATA:SDAT?");//leer datos S11
                     new connectTask().execute(":SYSTem:BATTery:ABSCharge?");//leer nivel bateria VNA
-                }else{
+                } else {
                     Toast.makeText(getApplicationContext(), "Analizador No Conectado!", Toast.LENGTH_SHORT).show();
                 }
                 //Debug: Conexión a GDrive y Crear carpeta en el directorio Raiz
@@ -287,7 +287,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
     protected void onResume() {
         super.onResume();  // Always call the superclass method first
         //graph.removeAllSeries();//borramos los ejes
-        NumAreaSelec=-1; //evita que cuando se modifique el nombre del proyecto, el último área que se estuviera visualizando del proyecto anterior se copie en el nuevo proyecto
+        NumAreaSelec = -1; //evita que cuando se modifique el nombre del proyecto, el último área que se estuviera visualizando del proyecto anterior se copie en el nuevo proyecto
         actualizarArea = true;
         invalidateOptionsMenu();//esto hace una llamada a la función "onPrepareOptionsMenu()" q tiene acceso a los items de la actionbar
         actualizarArea = false;
@@ -537,7 +537,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
         // Guardaremos la medidas del area seleccionada en un archivo XML de nombre: "proyecto.Area.XX.xml"
         int Nmed = Rlist.size();
         String Nmed_update = "1";
-        if (Nmed > 0) { //guardamos archivo: lo creamos o actualizamos uno existente
+        if ((Nmed > 0) && (NumAreaSelec > -1)) { //guardamos archivo: lo creamos o actualizamos uno existente
             //Nombre archivo XML
             String nmfile = pref.getString("nameProyecto", "") + ".Area." + NumAreas[NumAreaSelec];
             Log.e(LOGTAG, "alej nmfile: " + nmfile);
@@ -585,7 +585,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
             if (isExternalStorageWritable()) {
                 if (saveSharedPreferencesToFile(src, dst) == false) {
                     Toast.makeText(getApplicationContext(), "Error de Escritura", Toast.LENGTH_SHORT).show();
-                }else{
+                } else {
                     Toast.makeText(getApplicationContext(), "Área Guardada: " + NumAreas[NumAreaSelec] + "!", Toast.LENGTH_SHORT).show();
                 }
             } else {
@@ -597,6 +597,26 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
             String[] datos = new String[]{src, "Copiar", MedidasAppFolderID, fileID};//filename del XML a copiar!
             new createGDriveFileTask().execute(datos);//debug en Modo Online
         }
+        if ((Nmed == 0) && (NumAreaSelec > -1)) {
+            // Borrar este archivo de preferencias q contiene las medidas del área seleccionada, ya q se han borrado todas!
+            String nmfile = pref.getString("nameProyecto", "") + ".Area." + NumAreas[NumAreaSelec];
+            Log.e(LOGTAG, "alej nmfile: " + nmfile);
+            SharedPreferences prefArea = getSharedPreferences(nmfile, Context.MODE_PRIVATE);
+            SharedPreferences.Editor editor = prefArea.edit();
+            editor.clear();
+            editor.apply();//cambios inmediato
+
+            //Borrar archivo del almacenamiento externo
+            File fdExt = new File(Environment.getExternalStorageDirectory(), "0AaMedidas");//creamos o accedemos al directorio medidas
+            if (fdExt.exists() == true) { //Comprobar que existe el directorio y que existe el archivo
+                String dst = fdExt.getAbsolutePath() + File.separator + nmfile + ".xml";
+                File file = new File(dst);
+                file.delete();
+                Log.e(LOGTAG, "alej: Archivo borrado SD: " + nmfile);
+                //Toast.makeText(getApplicationContext(), "Área Borrada: " + NumAreas[NumAreaSelec] + "!", Toast.LENGTH_SHORT).show();
+            }
+        }
+
     }
 
     //Actualiza los nombres de las areas o el num de areas a medir
@@ -722,7 +742,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
 
 
         //Notificacion en la barra de tareas
-        int notificationID=1;
+        int notificationID = 1;
         NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(MainActivity.this);
         mBuilder.setContentTitle(txt);
         mBuilder.setContentText(txt);
@@ -766,35 +786,35 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
 
         //Actuliza nivel de la bateria
         item = menu.findItem(R.id.bateria);
-        if ((conectado == 1) || (conectado==0)) { //no comprobamos que esté conectado: a veces tras estar desconectado  y salir de la pantalla principal, la var. se pone en desconectado
+        if ((conectado == 1) || (conectado == 0)) { //no comprobamos que esté conectado: a veces tras estar desconectado  y salir de la pantalla principal, la var. se pone en desconectado
             int drawableResourceId;
-            if (bateria_vna.equals("-1")){
-                drawableResourceId=R.drawable.battery_charge_background_00;
-            }else {
-                String icon_name="";
-                int bat=Integer.parseInt(bateria_vna);
-                bat+=7;//la lectura del vna no coincide con el valor
-                bateria_vna=String.valueOf(bat);
-                if (bat<5){
+            if (bateria_vna.equals("-1")) {
+                drawableResourceId = R.drawable.battery_charge_background_00;
+            } else {
+                String icon_name = "";
+                int bat = Integer.parseInt(bateria_vna);
+                bat += 7;//la lectura del vna no coincide con el valor
+                bateria_vna = String.valueOf(bat);
+                if (bat < 5) {
                     drawableResourceId = R.drawable.battery_charge_background_01;
-                }else if (bat>=5 && bat<10){
+                } else if (bat >= 5 && bat < 10) {
                     drawableResourceId = R.drawable.battery_charge_background_05;
-                }else {
+                } else {
                     int bat2digit = Integer.parseInt(bateria_vna.substring(1));
-                    String digit2="";
+                    String digit2 = "";
                     if (bat2digit <= 3) {
                         digit2 = "0";
                     } else if (bat2digit > 3 && bat2digit <= 9) {
                         digit2 = "5";
                     }
                     icon_name = "battery_charge_background_" + bateria_vna.substring(0, 1) + digit2;
-                    Log.e("onPrepareOptionsMenu", "alej: Archivo Bateria: "+icon_name);
+                    Log.e("onPrepareOptionsMenu", "alej: Archivo Bateria: " + icon_name);
                     drawableResourceId = this.getResources().getIdentifier(icon_name, "drawable", this.getPackageName());
                 }
 
             }
             item.setIcon(drawableResourceId);
-        }else{ //No muestra dato sobre la bateria
+        } else { //No muestra dato sobre la bateria
             item.setIcon(R.drawable.battery_charge_background_00);
         }
 
@@ -908,7 +928,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
                     String[] cmd_conf = {":INST \"NA\"", ":SOUR:POW:ALC HIGH", ":INIT:CONT 1", ":FREQ:STAR 2e9", ":FREQ:STOP 18e9", ":SWE:POIN 201", ":BWID 1000", ":AVER:COUN 1"};
 
                     //Mostramos Barra de Progreso
-                    progress=new ProgressDialog(this);
+                    progress = new ProgressDialog(this);
                     progress.setMessage("Conectando al VNA");
                     progress.setProgressStyle(ProgressDialog.STYLE_SPINNER);
                     progress.setIndeterminate(true);
@@ -921,14 +941,14 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
                     item.setIcon(R.drawable.ic_lock_power_off_verde);//No marcamos en rojo hasta que no se haya conectado (icono coloreado de rojo indicando q se está conectado)
                 } else {
                     conectado = 0;
-                    bateria_vna="-1";
+                    bateria_vna = "-1";
                     //item.setIcon(android.R.drawable.presence_invisible);
                     item.setIcon(android.R.drawable.ic_lock_power_off);
                     Log.e("ActionBar", "alej: Desconectado: boton en gris");
                 }
                 return true;
             case R.id.bateria: //Se pulsa sobre el icono de la bateria
-                if (conectado==1) {
+                if (conectado == 1) {
                     new connectTask().execute(":SYSTem:BATTery:ABSCharge?");//leer nivel bateria VNA
                 }
                 return true;
@@ -990,17 +1010,17 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
             if (msg.equals("Bateria")) {
                 conectado = 1;
                 bateria_vna = mTcpClient.battery;
-                Log.e("connectTask", "alej: Bateria VNA: "+bateria_vna+"%");
+                Log.e("connectTask", "alej: Bateria VNA: " + bateria_vna + "%");
                 invalidateOptionsMenu();//actualiza la actionBar con el porcentaje de bateria q le queda al VNA
-            } else if (msg.equals("Error"))  {
+            } else if (msg.equals("Error")) {
                 Toast.makeText(getApplicationContext(), "Error de red o No conectado a la Wfi del VNA", Toast.LENGTH_SHORT).show();
                 conectado = 0; //boton en gris pq ha habido un fallo
-                bateria_vna="-1";//bateria VNA: no se dispone de datos
+                bateria_vna = "-1";//bateria VNA: no se dispone de datos
                 invalidateOptionsMenu();//actualiza la actionBar para dibujar el boton en gris
-            } else if (msg.equals("FinInicializacion")){ //Se han enviado todos los comandos de inicializacion al VNA: cerrar Barra de Progreso!
+            } else if (msg.equals("FinInicializacion")) { //Se han enviado todos los comandos de inicializacion al VNA: cerrar Barra de Progreso!
 //                progress.setProgress(progress.getMax());
                 progress.dismiss();
-            }else{ //Los datos devueltos son la lectura del param S11
+            } else { //Los datos devueltos son la lectura del param S11
                 lecturaS11(msg);//Tras recibir un msg, llamamos a la función que lo procesa
                 conectado = 1;
             }
